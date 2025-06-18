@@ -111,9 +111,16 @@ model ORDER {
   pesananId         Int       @id @default(autoincrement())
   tanggalPesanan    DateTime? @default(now())
   jumlahTotal       Float
-  status            String?
+  status            String?   @default("pending")
   alamatAntar       String    @db.Text
   metodePembayaran  String?
+  catatanPesanan    String?   @db.Text
+  estimasiWaktu     String?
+  biayaOngkir       Float?    @default(0)
+  biayaLayanan      Float?    @default(0)
+  totalBiaya        Float?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   // Relasi: Order ini dibuat oleh satu User
   penggunaId Int?
@@ -137,6 +144,10 @@ model ORDER_ITEM {
   itemPesananId   Int     @id @default(autoincrement())
   quantity        Int
   instruksiKhusus String? @db.Text
+  hargaSatuan     Float
+  totalHarga      Float
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   // Relasi: Item ini adalah bagian dari satu Order
   pesananId Int
