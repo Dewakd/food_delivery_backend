@@ -30,6 +30,8 @@ model USER {
   telepon       String?
   alamat        String?
   role          Role     @map("Role")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Relasi: Satu User bisa punya banyak Order
   orders        ORDER[]
