@@ -423,41 +423,7 @@ export const resolvers = {
       });
     },
 
-    assignOrderToDriver: async (_, { orderId, driverId }, { user }) => {
-      if (!user || user.role !== 'Restaurant') {
-        throw new GraphQLError('Only restaurant owners can assign drivers', {
-          extensions: { code: 'FORBIDDEN' }
-        });
-      }
 
-      const order = await prisma.oRDER.findUnique({
-        where: { pesananId: parseInt(orderId) }
-      });
-
-      const driver = await prisma.dELIVERY_DRIVER.findUnique({
-        where: { pengemudiId: parseInt(driverId) }
-      });
-
-      if (!order) {
-        throw new GraphQLError('Order not found', {
-          extensions: { code: 'ORDER_NOT_FOUND' }
-        });
-      }
-
-      if (!driver) {
-        throw new GraphQLError('Driver not found', {
-          extensions: { code: 'DRIVER_NOT_FOUND' }
-        });
-      }
-
-      return await prisma.oRDER.update({
-        where: { pesananId: parseInt(orderId) },
-        data: {
-          pengemudiId: parseInt(driverId),
-          updatedAt: new Date()
-        }
-      });
-    },
   },
 
   // Relation resolvers

@@ -6,9 +6,9 @@ const prisma = new PrismaClient();
 export const resolvers = {
   Query: {
     getAllDrivers: async (_, { filter, sortBy, limit = 50, offset = 0 }, { user }) => {
-      // Only restaurant owners can see all drivers
-      if (!user || user.role !== 'Restaurant') {
-        throw new GraphQLError('Only restaurant owners can access all drivers', {
+      // Only platform admins can see all drivers - restaurants don't manage drivers
+      if (!user || user.role !== 'Admin') {
+        throw new GraphQLError('Only platform administrators can access all drivers', {
           extensions: { code: 'FORBIDDEN' }
         });
       }
@@ -95,57 +95,44 @@ export const resolvers = {
       return drivers[0] || null;
     },
 
-    getAvailableDrivers: async (_, { limit = 20 }, { user }) => {
-      if (!user || user.role !== 'Restaurant') {
-        throw new GraphQLError('Only restaurant owners can see available drivers', {
+    getAvailableOrders: async (_, { limit = 20 }, { user }) => {
+      // Drivers can see orders that are ready for pickup
+      if (!user || user.role !== 'Driver') {
+        throw new GraphQLError('Only drivers can see available orders', {
           extensions: { code: 'FORBIDDEN' }
         });
       }
 
-      return await prisma.dELIVERY_DRIVER.findMany({
+      // Return orders that are ready but not yet assigned to a driver
+      return await prisma.oRDER.findMany({
         where: {
-          status: 'Online',
-          isActive: true
+          status: 'ready',
+          pengemudiId: null // Not assigned to any driver yet
         },
-        orderBy: { rating: 'desc' },
+        orderBy: { updatedAt: 'asc' }, // First ready, first served
         take: limit
       });
     },
 
-    getDriversByStatus: async (_, { status }, { user }) => {
-      if (!user || user.role !== 'Restaurant') {
-        throw new GraphQLError('Only restaurant owners can filter drivers by status', {
+    getMyActiveDelivery: async (_, __, { user }) => {
+      if (!user || user.role !== 'Driver') {
+        throw new GraphQLError('Only drivers can see their active delivery', {
           extensions: { code: 'FORBIDDEN' }
         });
       }
 
-      return await prisma.dELIVERY_DRIVER.findMany({
-        where: {
-          status,
-          isActive: true
-        },
-        orderBy: { rating: 'desc' }
+      // In real app, you'd find driver by user ID
+      const drivers = await prisma.dELIVERY_DRIVER.findMany({
+        where: { isActive: true, status: 'Delivering' }
       });
-    },
 
-    searchDrivers: async (_, { searchTerm, limit = 20 }, { user }) => {
-      if (!user || user.role !== 'Restaurant') {
-        throw new GraphQLError('Only restaurant owners can search drivers', {
-          extensions: { code: 'FORBIDDEN' }
-        });
-      }
+      if (!drivers.length) return null;
 
-      return await prisma.dELIVERY_DRIVER.findMany({
+      return await prisma.oRDER.findFirst({
         where: {
-          OR: [
-            { namaPengemudi: { contains: searchTerm } },
-            { telepon: { contains: searchTerm } },
-            { detailKendaraan: { contains: searchTerm } }
-          ],
-          isActive: true
-        },
-        take: limit,
-        orderBy: { rating: 'desc' }
+          pengemudiId: drivers[0].pengemudiId,
+          status: 'delivering'
+        }
       });
     },
 
@@ -196,21 +183,28 @@ export const resolvers = {
       };
     },
 
-    getNearbyDrivers: async (_, { latitude, longitude, radius }, { user }) => {
-      if (!user || user.role !== 'Restaurant') {
-        throw new GraphQLError('Only restaurant owners can find nearby drivers', {
+    getMyDeliveryHistory: async (_, { limit = 50, offset = 0 }, { user }) => {
+      if (!user || user.role !== 'Driver') {
+        throw new GraphQLError('Only drivers can see their delivery history', {
           extensions: { code: 'FORBIDDEN' }
         });
       }
 
-      // Simplified version - in real app, you'd use proper geospatial queries
-      return await prisma.dELIVERY_DRIVER.findMany({
+      // In real app, you'd find driver by user ID
+      const drivers = await prisma.dELIVERY_DRIVER.findMany({
+        where: { isActive: true }
+      });
+
+      if (!drivers.length) return [];
+
+      return await prisma.oRDER.findMany({
         where: {
-          status: 'Online',
-          isActive: true,
-          lokasiSaatIni: { not: null }
+          pengemudiId: drivers[0].pengemudiId,
+          status: { in: ['completed', 'cancelled'] }
         },
-        orderBy: { rating: 'desc' }
+        orderBy: { updatedAt: 'desc' },
+        take: limit,
+        skip: offset
       });
     },
   },
@@ -286,6 +280,74 @@ export const resolvers = {
       });
 
       return true;
+    },
+
+    // Driver order management
+    acceptOrder: async (_, { orderId }, { user }) => {
+      if (!user || user.role !== 'Driver') {
+        throw new GraphQLError('Only drivers can accept orders', {
+          extensions: { code: 'FORBIDDEN' }
+        });
+      }
+
+      const orderIdInt = parseInt(orderId);
+
+      // Check if order exists and is available
+      const order = await prisma.oRDER.findUnique({
+        where: { pesananId: orderIdInt }
+      });
+
+      if (!order) {
+        throw new GraphQLError('Order not found', {
+          extensions: { code: 'ORDER_NOT_FOUND' }
+        });
+      }
+
+      if (order.status !== 'ready') {
+        throw new GraphQLError('Order is not ready for pickup', {
+          extensions: { code: 'ORDER_NOT_READY' }
+        });
+      }
+
+      if (order.pengemudiId) {
+        throw new GraphQLError('Order already assigned to another driver', {
+          extensions: { code: 'ORDER_ALREADY_ASSIGNED' }
+        });
+      }
+
+      // Get driver profile
+      const drivers = await prisma.dELIVERY_DRIVER.findMany({
+        where: { isActive: true, status: 'Online' }
+      });
+
+      if (!drivers.length) {
+        throw new GraphQLError('Driver profile not found or not online', {
+          extensions: { code: 'DRIVER_NOT_AVAILABLE' }
+        });
+      }
+
+      const driver = drivers[0];
+
+      // Assign order to driver and update statuses
+      await prisma.oRDER.update({
+        where: { pesananId: orderIdInt },
+        data: {
+          pengemudiId: driver.pengemudiId,
+          status: 'delivering',
+          updatedAt: new Date()
+        }
+      });
+
+      // Update driver status
+      await prisma.dELIVERY_DRIVER.update({
+        where: { pengemudiId: driver.pengemudiId },
+        data: {
+          status: 'Delivering',
+          updatedAt: new Date()
+        }
+      });
+
+      return order;
     },
 
     // Driver status management
@@ -460,119 +522,7 @@ export const resolvers = {
       });
     },
 
-    // Admin operations (Restaurant role only)
-    toggleDriverActiveStatus: async (_, { driverId }, { user }) => {
-      if (!user || user.role !== 'Restaurant') {
-        throw new GraphQLError('Only restaurant owners can toggle driver status', {
-          extensions: { code: 'FORBIDDEN' }
-        });
-      }
 
-      const driverIdInt = parseInt(driverId);
-
-      const driver = await prisma.dELIVERY_DRIVER.findUnique({
-        where: { pengemudiId: driverIdInt }
-      });
-
-      if (!driver) {
-        throw new GraphQLError('Driver not found', {
-          extensions: { code: 'DRIVER_NOT_FOUND' }
-        });
-      }
-
-      return await prisma.dELIVERY_DRIVER.update({
-        where: { pengemudiId: driverIdInt },
-        data: {
-          isActive: !driver.isActive,
-          updatedAt: new Date()
-        }
-      });
-    },
-
-    assignOrderToDriver: async (_, { orderId, driverId }, { user }) => {
-      if (!user || user.role !== 'Restaurant') {
-        throw new GraphQLError('Only restaurant owners can assign orders', {
-          extensions: { code: 'FORBIDDEN' }
-        });
-      }
-
-      const orderIdInt = parseInt(orderId);
-      const driverIdInt = parseInt(driverId);
-
-      // Check if order and driver exist
-      const order = await prisma.oRDER.findUnique({
-        where: { pesananId: orderIdInt }
-      });
-
-      const driver = await prisma.dELIVERY_DRIVER.findUnique({
-        where: { pengemudiId: driverIdInt }
-      });
-
-      if (!order) {
-        throw new GraphQLError('Order not found', {
-          extensions: { code: 'ORDER_NOT_FOUND' }
-        });
-      }
-
-      if (!driver) {
-        throw new GraphQLError('Driver not found', {
-          extensions: { code: 'DRIVER_NOT_FOUND' }
-        });
-      }
-
-      // Assign order to driver
-      await prisma.oRDER.update({
-        where: { pesananId: orderIdInt },
-        data: { pengemudiId: driverIdInt }
-      });
-
-      return driver;
-    },
-
-    removeDriverFromOrder: async (_, { orderId }, { user }) => {
-      if (!user || user.role !== 'Restaurant') {
-        throw new GraphQLError('Only restaurant owners can remove driver from order', {
-          extensions: { code: 'FORBIDDEN' }
-        });
-      }
-
-      const orderIdInt = parseInt(orderId);
-
-      await prisma.oRDER.update({
-        where: { pesananId: orderIdInt },
-        data: { pengemudiId: null }
-      });
-
-      return true;
-    },
-
-    // Bulk operations
-    bulkUpdateDriverStatus: async (_, { driverIds, status }, { user }) => {
-      if (!user || user.role !== 'Restaurant') {
-        throw new GraphQLError('Only restaurant owners can bulk update driver status', {
-          extensions: { code: 'FORBIDDEN' }
-        });
-      }
-
-      const driverIdsInt = driverIds.map(id => parseInt(id));
-
-      await prisma.dELIVERY_DRIVER.updateMany({
-        where: {
-          pengemudiId: { in: driverIdsInt }
-        },
-        data: {
-          status,
-          updatedAt: new Date()
-        }
-      });
-
-      // Return updated drivers
-      return await prisma.dELIVERY_DRIVER.findMany({
-        where: {
-          pengemudiId: { in: driverIdsInt }
-        }
-      });
-    },
   },
 
   // Relation resolvers
@@ -593,26 +543,14 @@ export const resolvers = {
       });
     },
 
-    completedOrders: async (parent) => {
+    deliveryHistory: async (parent) => {
       return await prisma.oRDER.findMany({
         where: {
           pengemudiId: parent.pengemudiId,
-          status: 'completed'
+          status: { in: ['completed', 'cancelled'] }
         },
         orderBy: { tanggalPesanan: 'desc' }
       });
-    },
-
-    earnings: async (parent) => {
-      const totalOrders = await prisma.oRDER.count({
-        where: {
-          pengemudiId: parent.pengemudiId,
-          status: 'completed'
-        }
-      });
-
-      // Simplified calculation - 15,000 per delivery
-      return totalOrders * 15000;
     }
   }
 }; 

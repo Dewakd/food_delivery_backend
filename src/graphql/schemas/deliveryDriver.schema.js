@@ -24,8 +24,7 @@ export const typeDefs = `#graphql
     # Relasi
     orders: [Order]
     activeOrder: Order
-    completedOrders: [Order]
-    earnings: Float
+    deliveryHistory: [Order]
   }
 
   # Input types untuk mutations
@@ -65,25 +64,16 @@ export const typeDefs = `#graphql
     CREATED_AT_DESC
   }
 
-  # Driver performance stats
-  type DriverStats {
-    totalDeliveries: Int!
-    totalEarnings: Float!
-    averageRating: Float!
-    completionRate: Float!
-    onlineHours: Float!
-  }
+
 
   # Menambahkan queries ke dalam Query
   extend type Query {
     getAllDrivers(filter: DriverFilter, sortBy: DriverSortBy, limit: Int, offset: Int): [DeliveryDriver]
     getDriverById(id: ID!): DeliveryDriver
     getMyDriverProfile: DeliveryDriver
-    getAvailableDrivers(limit: Int): [DeliveryDriver]
-    getDriversByStatus(status: DriverStatus!): [DeliveryDriver]
-    searchDrivers(searchTerm: String!, limit: Int): [DeliveryDriver]
-    getDriverStats(driverId: ID!): DriverStats
-    getNearbyDrivers(latitude: Float!, longitude: Float!, radius: Float!): [DeliveryDriver]
+    getAvailableOrders(limit: Int): [Order]
+    getMyActiveDelivery: Order
+    getMyDeliveryHistory(limit: Int, offset: Int): [Order]
   }
 
   # Menambahkan mutations ke dalam Mutation
@@ -92,6 +82,9 @@ export const typeDefs = `#graphql
     createDriverProfile(input: CreateDriverInput!): DeliveryDriver
     updateDriverProfile(input: UpdateDriverInput!): DeliveryDriver
     deleteDriverProfile: Boolean
+    
+    # Driver order management
+    acceptOrder(orderId: ID!): Order
     
     # Driver status management
     updateDriverStatus(status: DriverStatus!): DeliveryDriver
@@ -102,13 +95,5 @@ export const typeDefs = `#graphql
     
     # Location management
     updateDriverLocation(input: UpdateDriverLocationInput!): DeliveryDriver
-    
-    # Admin operations (Restaurant role only)
-    toggleDriverActiveStatus(driverId: ID!): DeliveryDriver
-    assignOrderToDriver(orderId: ID!, driverId: ID!): DeliveryDriver
-    removeDriverFromOrder(orderId: ID!): Boolean
-    
-    # Bulk operations
-    bulkUpdateDriverStatus(driverIds: [ID!]!, status: DriverStatus!): [DeliveryDriver]
   }
 `; 

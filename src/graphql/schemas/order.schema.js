@@ -95,15 +95,7 @@ export const typeDefs = `#graphql
     CREATED_AT_DESC
   }
 
-  # Order statistics
-  type OrderStats {
-    totalOrders: Int!
-    totalRevenue: Float!
-    averageOrderValue: Float!
-    completedOrders: Int!
-    cancelledOrders: Int!
-    pendingOrders: Int!
-  }
+
 
   # Menambahkan queries ke dalam Query
   extend type Query {
@@ -115,7 +107,6 @@ export const typeDefs = `#graphql
     getActiveOrders: [Order]
     getPendingOrders: [Order]
     getOrderHistory(limit: Int, offset: Int): [Order]
-    getOrderStats(restoranId: ID, driverId: ID, dateFrom: String, dateTo: String): OrderStats
     searchOrders(searchTerm: String!, limit: Int): [Order]
   }
 
@@ -135,12 +126,6 @@ export const typeDefs = `#graphql
     startDelivery(orderId: ID!): Order
     completeDelivery(orderId: ID!): Order
     
-    # Admin operations
-    assignOrderToDriver(orderId: ID!, driverId: ID!): Order
-    reassignOrder(orderId: ID!, newDriverId: ID!): Order
-    
-    # Bulk operations
-    bulkUpdateOrderStatus(orderIds: [ID!]!, status: OrderStatus!): [Order]
-    bulkCancelOrders(orderIds: [ID!]!, reason: String!): Boolean
+
   }
 `; 
