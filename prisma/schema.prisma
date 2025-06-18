@@ -47,6 +47,12 @@ model RESTAURANT {
   rating        Float?   @default(0)
   jamBuka       String?
   biayaAntar    Float?   @default(0)
+  isActive      Boolean  @default(true)
+  urlGambar     String?
+  telepon       String?
+  deskripsi     String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Relasi: Satu Restoran punya banyak Menu Item dan banyak Order
   menuItems     MENU_ITEM[]
@@ -81,6 +87,10 @@ model MENU_ITEM {
   deskripsi  String?  @db.Text
   harga      Float
   urlGambar  String?
+  isAvailable Boolean @default(true)
+  kategori   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Relasi: Menu item ini milik satu Restoran
   restoranId Int
