@@ -44,6 +44,16 @@ export const typeDefs = `#graphql
     totalItems: Int
   }
 
+  # Order statistics type
+  type OrderStats {
+    totalOrders: Int!
+    totalRevenue: Float!
+    averageOrderValue: Float!
+    completedOrders: Int!
+    cancelledOrders: Int!
+    pendingOrders: Int!
+  }
+
   # Input types untuk mutations
   input CreateOrderInput {
     restoranId: ID!
@@ -107,6 +117,7 @@ export const typeDefs = `#graphql
     getActiveOrders: [Order]
     getPendingOrders: [Order]
     getOrderHistory(limit: Int, offset: Int): [Order]
+    getOrderStats(restoranId: ID, driverId: ID, dateFrom: String, dateTo: String): OrderStats
     searchOrders(searchTerm: String!, limit: Int): [Order]
   }
 
@@ -123,8 +134,6 @@ export const typeDefs = `#graphql
     
     # Driver operations
     acceptDelivery(orderId: ID!): Order
-    startDelivery(orderId: ID!): Order
-    completeDelivery(orderId: ID!): Order
     
 
   }

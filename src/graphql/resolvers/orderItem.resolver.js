@@ -429,6 +429,128 @@ export const resolvers = {
         take: items.length
       });
     },
+
+    removeMultipleItemsFromOrder: async (_, { itemIds }, { user }) => {
+      if (!user) {
+        throw new GraphQLError('You must be logged in', {
+          extensions: { code: 'UNAUTHENTICATED' }
+        });
+      }
+
+      const itemIdsInt = itemIds.map(id => parseInt(id));
+
+      // Get order items to check permissions
+      const orderItems = await prisma.oRDER_ITEM.findMany({
+        where: { itemPesananId: { in: itemIdsInt } },
+        include: { pesanan: true }
+      });
+
+      if (orderItems.length === 0) {
+        throw new GraphQLError('No order items found', {
+          extensions: { code: 'ORDER_ITEMS_NOT_FOUND' }
+        });
+      }
+
+      // Check permissions for each order item
+      if (user.role === 'Customer') {
+        for (const orderItem of orderItems) {
+          if (orderItem.pesanan.penggunaId !== user.penggunaId) {
+            throw new GraphQLError('You can only modify your own order items', {
+              extensions: { code: 'FORBIDDEN' }
+            });
+          }
+
+          if (orderItem.pesanan.status !== 'pending') {
+            throw new GraphQLError('You can only modify pending orders', {
+              extensions: { code: 'ORDER_NOT_MODIFIABLE' }
+            });
+          }
+        }
+      }
+
+      const pesananIds = [...new Set(orderItems.map(item => item.pesananId))];
+
+      // Delete all order items
+      await prisma.oRDER_ITEM.deleteMany({
+        where: { itemPesananId: { in: itemIdsInt } }
+      });
+
+      // Update order totals for all affected orders
+      for (const pesananId of pesananIds) {
+        await updateOrderTotal(pesananId);
+      }
+
+      return true;
+    },
+
+    updateOrderItemQuantities: async (_, { updates }, { user }) => {
+      if (!user) {
+        throw new GraphQLError('You must be logged in', {
+          extensions: { code: 'UNAUTHENTICATED' }
+        });
+      }
+
+      const itemIds = updates.map(update => parseInt(update.itemPesananId));
+
+      // Get order items to check permissions
+      const orderItems = await prisma.oRDER_ITEM.findMany({
+        where: { itemPesananId: { in: itemIds } },
+        include: { pesanan: true }
+      });
+
+      if (orderItems.length === 0) {
+        throw new GraphQLError('No order items found', {
+          extensions: { code: 'ORDER_ITEMS_NOT_FOUND' }
+        });
+      }
+
+      // Check permissions
+      if (user.role === 'Customer') {
+        for (const orderItem of orderItems) {
+          if (orderItem.pesanan.penggunaId !== user.penggunaId) {
+            throw new GraphQLError('You can only modify your own order items', {
+              extensions: { code: 'FORBIDDEN' }
+            });
+          }
+
+          if (orderItem.pesanan.status !== 'pending') {
+            throw new GraphQLError('You can only modify pending orders', {
+              extensions: { code: 'ORDER_NOT_MODIFIABLE' }
+            });
+          }
+        }
+      }
+
+      const updatedItems = [];
+      const pesananIds = new Set();
+
+      // Update each order item
+      for (const update of updates) {
+        const orderItem = orderItems.find(item => item.itemPesananId === parseInt(update.itemPesananId));
+        if (!orderItem) continue;
+
+        const newTotalHarga = orderItem.hargaSatuan * update.quantity;
+        
+        const updated = await prisma.oRDER_ITEM.update({
+          where: { itemPesananId: parseInt(update.itemPesananId) },
+          data: {
+            quantity: update.quantity,
+            totalHarga: newTotalHarga,
+            updatedAt: new Date()
+          }
+        });
+
+        updatedItems.push(updated);
+        pesananIds.add(orderItem.pesananId);
+      }
+
+      // Update order totals for all affected orders
+      for (const pesananId of pesananIds) {
+        await updateOrderTotal(pesananId);
+      }
+
+      return updatedItems;
+    },
   },
 
   // Relation resolvers

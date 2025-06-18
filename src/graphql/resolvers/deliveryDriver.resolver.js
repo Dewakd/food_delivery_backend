@@ -136,53 +136,6 @@ export const resolvers = {
       });
     },
 
-    getDriverStats: async (_, { driverId }, { user }) => {
-      if (!user) {
-        throw new GraphQLError('You must be logged in', {
-          extensions: { code: 'UNAUTHENTICATED' }
-        });
-      }
-
-      const targetDriverId = parseInt(driverId);
-
-      // Drivers can only see their own stats, restaurant owners can see all
-      if (user.role !== 'Restaurant' && user.role !== 'Driver') {
-        throw new GraphQLError('Unauthorized to view driver stats', {
-          extensions: { code: 'FORBIDDEN' }
-        });
-      }
-
-      const driver = await prisma.dELIVERY_DRIVER.findUnique({
-        where: { pengemudiId: targetDriverId }
-      });
-
-      if (!driver) {
-        throw new GraphQLError('Driver not found', {
-          extensions: { code: 'DRIVER_NOT_FOUND' }
-        });
-      }
-
-      // Calculate stats (simplified version)
-      const totalOrders = await prisma.oRDER.count({
-        where: { pengemudiId: targetDriverId }
-      });
-
-      const completedOrders = await prisma.oRDER.count({
-        where: {
-          pengemudiId: targetDriverId,
-          status: 'completed'
-        }
-      });
-
-      return {
-        totalDeliveries: driver.totalDeliveries,
-        totalEarnings: totalOrders * 15000, // Simplified calculation
-        averageRating: driver.rating || 0,
-        completionRate: totalOrders > 0 ? (completedOrders / totalOrders) * 100 : 0,
-        onlineHours: 8.5 // Simplified - would track actual online time
-      };
-    },
-
     getMyDeliveryHistory: async (_, { limit = 50, offset = 0 }, { user }) => {
       if (!user || user.role !== 'Driver') {
         throw new GraphQLError('Only drivers can see their delivery history', {

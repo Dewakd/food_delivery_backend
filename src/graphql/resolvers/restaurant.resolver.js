@@ -1,12 +1,12 @@
     // File: src/graphql/resolvers/restaurant.resolver.js
-
+    
 import { PrismaClient } from '@prisma/client';
 import { GraphQLError } from 'graphql';
 
-const prisma = new PrismaClient();
-
+    const prisma = new PrismaClient();
+    
 export const resolvers = {
-  Query: {
+      Query: {
     getAllRestaurants: async (_, { filter, sortBy, limit = 50, offset = 0 }) => {
       // Build where clause for filtering
       const where = {
@@ -52,12 +52,12 @@ export const resolvers = {
         take: limit,
         skip: offset,
       });
-    },
+        },
 
-    getRestaurantById: async (_, { id }) => {
+        getRestaurantById: async (_, { id }) => {
       const restaurant = await prisma.rESTAURANT.findUnique({
-        where: { restoranId: parseInt(id) },
-      });
+            where: { restoranId: parseInt(id) },
+          });
 
       if (!restaurant) {
         throw new GraphQLError('Restaurant not found', {
@@ -170,11 +170,11 @@ export const resolvers = {
           isAvailable: true
         },
         orderBy: { nama: 'asc' }
-      });
-    },
-  },
+          });
+        },
+      },
 
-  Mutation: {
+      Mutation: {
     // Restaurant mutations
     createRestaurant: async (_, { input }, { user }) => {
       if (!user || user.role !== 'Restaurant') {
@@ -183,15 +183,15 @@ export const resolvers = {
         });
       }
 
-      return await prisma.rESTAURANT.create({
-        data: {
+          return await prisma.rESTAURANT.create({
+            data: {
           ...input,
           biayaAntar: input.biayaAntar || 0,
           rating: 0,
           isActive: true
+            },
+          });
         },
-      });
-    },
 
     updateRestaurant: async (_, { id, input }, { user }) => {
       if (!user || user.role !== 'Restaurant') {
@@ -431,9 +431,9 @@ export const resolvers = {
   },
 
   // Relation resolvers
-  Restaurant: {
-    menuItems: async (parent) => {
-      return await prisma.mENU_ITEM.findMany({
+      Restaurant: {
+          menuItems: async (parent) => {
+              return await prisma.mENU_ITEM.findMany({
         where: {
           restoranId: parent.restoranId,
           isAvailable: true
@@ -465,15 +465,15 @@ export const resolvers = {
   MenuItem: {
     restoran: async (parent) => {
       return await prisma.rESTAURANT.findUnique({
-        where: { restoranId: parent.restoranId }
-      });
+                  where: { restoranId: parent.restoranId }
+              });
     },
 
     orderItems: async (parent) => {
       return await prisma.oRDER_ITEM.findMany({
         where: { itemMenuId: parent.itemMenuId }
-      });
-    }
-  }
-};
+              });
+          }
+      }
+    };
     

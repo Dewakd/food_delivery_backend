@@ -423,6 +423,88 @@ export const resolvers = {
       });
     },
 
+    rejectOrder: async (_, { orderId, reason }, { user }) => {
+      if (!user || user.role !== 'Restaurant') {
+        throw new GraphQLError('Only restaurant owners can reject orders', {
+          extensions: { code: 'FORBIDDEN' }
+        });
+      }
+
+      const order = await prisma.oRDER.findUnique({
+        where: { pesananId: parseInt(orderId) }
+      });
+
+      if (!order) {
+        throw new GraphQLError('Order not found', {
+          extensions: { code: 'ORDER_NOT_FOUND' }
+        });
+      }
+
+      if (order.status !== 'pending') {
+        throw new GraphQLError('Order cannot be rejected in current status', {
+          extensions: { code: 'INVALID_ORDER_STATUS' }
+        });
+      }
+
+      return await prisma.oRDER.update({
+        where: { pesananId: parseInt(orderId) },
+        data: {
+          status: 'cancelled',
+          catatanPesanan: reason ? `${order.catatanPesanan || ''} [Rejected by restaurant: ${reason}]` : order.catatanPesanan,
+          updatedAt: new Date()
+        }
+      });
+    },
+
+    acceptDelivery: async (_, { orderId }, { user }) => {
+      if (!user || user.role !== 'Driver') {
+        throw new GraphQLError('Only drivers can accept delivery', {
+          extensions: { code: 'FORBIDDEN' }
+        });
+      }
+
+      const order = await prisma.oRDER.findUnique({
+        where: { pesananId: parseInt(orderId) }
+      });
+
+      if (!order) {
+        throw new GraphQLError('Order not found', {
+          extensions: { code: 'ORDER_NOT_FOUND' }
+        });
+      }
+
+      if (order.status !== 'ready') {
+        throw new GraphQLError('Order is not ready for delivery', {
+          extensions: { code: 'ORDER_NOT_READY' }
+        });
+      }
+
+      if (order.pengemudiId) {
+        throw new GraphQLError('Order already assigned to another driver', {
+          extensions: { code: 'ORDER_ALREADY_ASSIGNED' }
+        });
+      }
+
+      // Get driver profile - simplified for now
+      const drivers = await prisma.dELIVERY_DRIVER.findMany({
+        where: { isActive: true, status: 'Online' }
+      });
+
+      if (!drivers.length) {
+        throw new GraphQLError('Driver profile not found or not online', {
+          extensions: { code: 'DRIVER_NOT_AVAILABLE' }
+        });
+      }
+
+      return await prisma.oRDER.update({
+        where: { pesananId: parseInt(orderId) },
+        data: {
+          pengemudiId: drivers[0].pengemudiId,
+          status: 'delivering',
+          updatedAt: new Date()
+        }
+      });
+    },
 
   },
 

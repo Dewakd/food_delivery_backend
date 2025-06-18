@@ -1,0 +1,712 @@
+# Food Delivery Backend - Test Queries
+# Copy these queries to GraphQL Playground to test your API
+
+# =================
+# USER MANAGEMENT
+# =================
+
+# 1. Register a customer
+mutation RegisterCustomer {
+  registerUser(
+    email: "customer@test.com"
+    namaPengguna: "Test Customer"
+    password: "password123"
+    role: Customer
+    telepon: "081234567890"
+    alamat: "Jl. Test Customer No. 123"
+  ) {
+    token
+    user {
+      penggunaId
+      email
+      namaPengguna
+      role
+      createdAt
+    }
+  }
+}
+
+# 2. Register a restaurant owner
+mutation RegisterRestaurant {
+  registerUser(
+    email: "restaurant@test.com"
+    namaPengguna: "Test Restaurant Owner"
+    password: "password123"
+    role: Restaurant
+    telepon: "081234567891"
+    alamat: "Jl. Test Restaurant No. 456"
+  ) {
+    token
+    user {
+      penggunaId
+      email
+      namaPengguna
+      role
+      createdAt
+    }
+  }
+}
+
+# 3. Register a driver
+mutation RegisterDriver {
+  registerUser(
+    email: "driver@test.com"
+    namaPengguna: "Test Driver"
+    password: "password123"
+    role: Driver
+    telepon: "081234567892"
+    alamat: "Jl. Test Driver No. 789"
+  ) {
+    token
+    user {
+      penggunaId
+      email
+      namaPengguna
+      role
+      createdAt
+    }
+  }
+}
+
+# 4. Login user
+mutation LoginUser {
+  loginUser(email: "customer@test.com", password: "password123") {
+    token
+    user {
+      penggunaId
+      email
+      namaPengguna
+      role
+    }
+  }
+}
+
+# 5. Get current user profile (requires auth)
+query Me {
+  me {
+    penggunaId
+    email
+    namaPengguna
+    telepon
+    alamat
+    role
+    createdAt
+    updatedAt
+  }
+}
+
+# 6. Update profile (requires auth)
+mutation UpdateProfile {
+  updateProfile(input: {
+    namaPengguna: "Updated Customer Name"
+    telepon: "081999999999"
+    alamat: "Jl. New Address No. 999"
+  }) {
+    penggunaId
+    namaPengguna
+    telepon
+    alamat
+    updatedAt
+  }
+}
+
+# =================
+# RESTAURANT MANAGEMENT
+# =================
+
+# 7. Create restaurant (requires Restaurant role auth)
+mutation CreateRestaurant {
+  createRestaurant(input: {
+    nama: "Test Restaurant"
+    alamat: "Jl. Restaurant Test No. 123"
+    jenisMasakan: "Indonesian"
+    jamBuka: "08:00 - 22:00"
+    biayaAntar: 5000
+    telepon: "081555666777"
+    deskripsi: "Authentic Indonesian cuisine"
+    urlGambar: "https://example.com/restaurant.jpg"
+  }) {
+    restoranId
+    nama
+    alamat
+    jenisMasakan
+    jamBuka
+    biayaAntar
+    isActive
+    createdAt
+  }
+}
+
+# 8. Get all restaurants
+query GetAllRestaurants {
+  getAllRestaurants(limit: 10) {
+    restoranId
+    nama
+    alamat
+    jenisMasakan
+    rating
+    jamBuka
+    biayaAntar
+    isActive
+    urlGambar
+    telepon
+    deskripsi
+    totalOrders
+    averageRating
+  }
+}
+
+# 9. Search restaurants
+query SearchRestaurants {
+  searchRestaurants(searchTerm: "Indonesian", limit: 5) {
+    restoranId
+    nama
+    alamat
+    jenisMasakan
+    rating
+    biayaAntar
+    urlGambar
+  }
+}
+
+# 10. Create menu items (requires Restaurant role auth)
+mutation CreateMenuItem {
+  createMenuItem(input: {
+    nama: "Nasi Goreng"
+    deskripsi: "Delicious Indonesian fried rice"
+    harga: 25000
+    kategori: "Main Course"
+    urlGambar: "https://example.com/nasigoreng.jpg"
+    restoranId: "1"
+  }) {
+    itemMenuId
+    nama
+    deskripsi
+    harga
+    kategori
+    urlGambar
+    isAvailable
+    createdAt
+  }
+}
+
+mutation CreateMenuItem2 {
+  createMenuItem(input: {
+    nama: "Gado-Gado"
+    deskripsi: "Indonesian salad with peanut sauce"
+    harga: 20000
+    kategori: "Appetizer"
+    urlGambar: "https://example.com/gadogado.jpg"
+    restoranId: "1"
+  }) {
+    itemMenuId
+    nama
+    deskripsi
+    harga
+    kategori
+    urlGambar
+    isAvailable
+    createdAt
+  }
+}
+
+# 11. Get menu items by restaurant
+query GetMenuItems {
+  getMenuItemsByRestaurant(restoranId: "1") {
+    itemMenuId
+    nama
+    deskripsi
+    harga
+    kategori
+    urlGambar
+    isAvailable
+  }
+}
+
+# =================
+# DRIVER MANAGEMENT
+# =================
+
+# 12. Create driver profile (requires Driver role auth)
+mutation CreateDriverProfile {
+  createDriverProfile(input: {
+    namaPengemudi: "Test Driver Profile"
+    telepon: "081777888999"
+    detailKendaraan: "Honda Beat - B 1234 XYZ"
+    lokasiSaatIni: "Jakarta Pusat"
+  }) {
+    pengemudiId
+    namaPengemudi
+    telepon
+    detailKendaraan
+    status
+    lokasiSaatIni
+    rating
+    totalDeliveries
+    isActive
+    createdAt
+  }
+}
+
+# 13. Go online (requires Driver role auth)
+mutation GoOnline {
+  goOnline {
+    pengemudiId
+    status
+    updatedAt
+  }
+}
+
+# 14. Update driver location (requires Driver role auth)
+mutation UpdateDriverLocation {
+  updateDriverLocation(input: {
+    lokasiSaatIni: "Jakarta Selatan"
+  }) {
+    pengemudiId
+    lokasiSaatIni
+    updatedAt
+  }
+}
+
+# =================
+# ORDER MANAGEMENT
+# =================
+
+# 15. Create order (requires Customer role auth)
+mutation CreateOrder {
+  createOrder(input: {
+    restoranId: "1"
+    alamatAntar: "Jl. Delivery Address No. 456, Jakarta"
+    metodePembayaran: e_wallet
+    catatanPesanan: "Please deliver to the front door"
+    items: [
+      {
+        itemMenuId: "1"
+        quantity: 2
+        instruksiKhusus: "Extra spicy"
+      },
+      {
+        itemMenuId: "2"
+        quantity: 1
+        instruksiKhusus: "No peanuts"
+      }
+    ]
+  }) {
+    pesananId
+    tanggalPesanan
+    jumlahTotal
+    status
+    alamatAntar
+    metodePembayaran
+    catatanPesanan
+    biayaOngkir
+    biayaLayanan
+    totalBiaya
+    createdAt
+    restoran {
+      nama
+      alamat
+    }
+  }
+}
+
+# 16. Get my orders (requires Customer auth)
+query GetMyOrders {
+  getMyOrders(limit: 10) {
+    pesananId
+    tanggalPesanan
+    jumlahTotal
+    status
+    alamatAntar
+    metodePembayaran
+    estimasiWaktu
+    totalBiaya
+    restoran {
+      nama
+      alamat
+    }
+    pengemudi {
+      namaPengemudi
+      telepon
+    }
+    totalItems
+  }
+}
+
+# 17. Get pending orders (requires Restaurant role auth)
+query GetPendingOrders {
+  getPendingOrders {
+    pesananId
+    tanggalPesanan
+    jumlahTotal
+    alamatAntar
+    metodePembayaran
+    catatanPesanan
+    pengguna {
+      namaPengguna
+      telepon
+      alamat
+    }
+    items {
+      quantity
+      instruksiKhusus
+      hargaSatuan
+      totalHarga
+      menuItem {
+        nama
+        deskripsi
+      }
+    }
+  }
+}
+
+# 18. Confirm order (requires Restaurant role auth)
+mutation ConfirmOrder {
+  confirmOrder(orderId: "1", estimasiWaktu: "30 minutes") {
+    pesananId
+    status
+    estimasiWaktu
+    updatedAt
+  }
+}
+
+# 19. Update order status to ready (requires Restaurant role auth)
+mutation UpdateOrderToReady {
+  updateOrderStatus(input: {
+    orderId: "1"
+    status: ready
+    estimasiWaktu: "Ready for pickup"
+  }) {
+    pesananId
+    status
+    estimasiWaktu
+    updatedAt
+  }
+}
+
+# 20. Get available orders for delivery (requires Driver role auth)
+query GetAvailableOrders {
+  getAvailableOrders(limit: 5) {
+    pesananId
+    alamatAntar
+    jumlahTotal
+    estimasiWaktu
+    restoran {
+      nama
+      alamat
+      telepon
+    }
+    pengguna {
+      namaPengguna
+      telepon
+    }
+  }
+}
+
+# 21. Accept delivery order (requires Driver role auth)
+mutation AcceptDelivery {
+  acceptDelivery(orderId: "1") {
+    pesananId
+    status
+    pengemudiId
+    updatedAt
+  }
+}
+
+# 22. Complete delivery (update order status to completed - requires Driver role auth)
+mutation CompleteDelivery {
+  updateOrderStatus(input: {
+    orderId: "1"
+    status: completed
+  }) {
+    pesananId
+    status
+    updatedAt
+  }
+}
+
+# 23. Get order details
+query GetOrderDetails {
+  getOrderById(id: "1") {
+    pesananId
+    tanggalPesanan
+    jumlahTotal
+    status
+    alamatAntar
+    metodePembayaran
+    catatanPesanan
+    estimasiWaktu
+    biayaOngkir
+    biayaLayanan
+    totalBiaya
+    createdAt
+    updatedAt
+    pengguna {
+      namaPengguna
+      telepon
+      alamat
+    }
+    restoran {
+      nama
+      alamat
+      telepon
+    }
+    pengemudi {
+      namaPengemudi
+      telepon
+    }
+    items {
+      itemPesananId
+      quantity
+      instruksiKhusus
+      hargaSatuan
+      totalHarga
+      menuItem {
+        nama
+        deskripsi
+        urlGambar
+      }
+    }
+    totalItems
+  }
+}
+
+# =================
+# ORDER ITEM MANAGEMENT
+# =================
+
+# 24. Add item to existing order (requires Customer auth for pending orders)
+mutation AddItemToOrder {
+  addItemToOrder(input: {
+    pesananId: "1"
+    itemMenuId: "2"
+    quantity: 1
+    instruksiKhusus: "Medium spice level"
+  }) {
+    itemPesananId
+    quantity
+    instruksiKhusus
+    hargaSatuan
+    totalHarga
+    menuItem {
+      nama
+      harga
+    }
+  }
+}
+
+# 25. Update order item quantity (requires Customer auth for pending orders)
+mutation UpdateOrderItem {
+  updateOrderItem(id: "1", input: {
+    quantity: 3
+    instruksiKhusus: "Extra sauce"
+  }) {
+    itemPesananId
+    quantity
+    instruksiKhusus
+    totalHarga
+    updatedAt
+  }
+}
+
+# 26. Get order items for an order
+query GetOrderItems {
+  getOrderItemsByOrder(orderId: "1") {
+    itemPesananId
+    quantity
+    instruksiKhusus
+    hargaSatuan
+    totalHarga
+    menuItem {
+      nama
+      deskripsi
+      urlGambar
+    }
+  }
+}
+
+# =================
+# STATISTICS & ANALYTICS
+# =================
+
+# 27. Get order statistics (requires auth)
+query GetOrderStats {
+  getOrderStats(dateFrom: "2024-01-01", dateTo: "2024-12-31") {
+    totalOrders
+    totalRevenue
+    averageOrderValue
+    completedOrders
+    cancelledOrders
+    pendingOrders
+  }
+}
+
+# 28. Get restaurant-specific order stats (requires auth)
+query GetRestaurantOrderStats {
+  getOrderStats(restoranId: "1", dateFrom: "2024-01-01", dateTo: "2024-12-31") {
+    totalOrders
+    totalRevenue
+    averageOrderValue
+    completedOrders
+    cancelledOrders
+    pendingOrders
+  }
+}
+
+# 29. Get order item statistics (requires auth)
+query GetOrderItemStats {
+  getOrderItemStats(restoranId: "1", dateFrom: "2024-01-01", dateTo: "2024-12-31") {
+    totalQuantity
+    totalValue
+    averageQuantityPerOrder
+    popularItems {
+      nama
+      harga
+      kategori
+    }
+  }
+}
+
+# 30. Get popular order items
+query GetPopularOrderItems {
+  getPopularOrderItems(restoranId: "1", limit: 5) {
+    itemPesananId
+    quantity
+    totalHarga
+    menuItem {
+      nama
+      harga
+      urlGambar
+    }
+  }
+}
+
+# =================
+# FILTERING & SEARCHING
+# =================
+
+# 31. Filter restaurants
+query FilterRestaurants {
+  getAllRestaurants(
+    filter: {
+      jenisMasakan: "Indonesian"
+      minRating: 4.0
+      maxBiayaAntar: 10000
+      isActive: true
+    }
+    sortBy: RATING_DESC
+    limit: 5
+  ) {
+    restoranId
+    nama
+    jenisMasakan
+    rating
+    biayaAntar
+    isActive
+  }
+}
+
+# 32. Filter orders (requires Restaurant auth)
+query FilterOrders {
+  getAllOrders(
+    filter: {
+      status: pending
+      metodePembayaran: e_wallet
+      minTotal: 50000
+      dateFrom: "2024-01-01"
+      dateTo: "2024-12-31"
+    }
+    sortBy: DATE_DESC
+    limit: 10
+  ) {
+    pesananId
+    tanggalPesanan
+    jumlahTotal
+    status
+    metodePembayaran
+    pengguna {
+      namaPengguna
+    }
+  }
+}
+
+# 33. Search menu items in restaurant
+query SearchMenuItems {
+  searchMenuItems(restoranId: "1", searchTerm: "nasi") {
+    itemMenuId
+    nama
+    deskripsi
+    harga
+    kategori
+    isAvailable
+  }
+}
+
+# =================
+# BULK OPERATIONS
+# =================
+
+# 34. Add multiple items to order
+mutation AddMultipleItems {
+  addMultipleItemsToOrder(
+    pesananId: "1"
+    items: [
+      {
+        itemMenuId: "1"
+        quantity: 2
+        instruksiKhusus: "Spicy"
+      },
+      {
+        itemMenuId: "2"
+        quantity: 1
+        instruksiKhusus: "No nuts"
+      }
+    ]
+  ) {
+    itemPesananId
+    quantity
+    totalHarga
+    menuItem {
+      nama
+      harga
+    }
+  }
+}
+
+# 35. Bulk update menu items availability (requires Restaurant auth)
+mutation BulkUpdateMenuItems {
+  bulkUpdateMenuItems(restoranId: "1", isAvailable: true) {
+    itemMenuId
+    nama
+    isAvailable
+    updatedAt
+  }
+}
+
+# =================
+# ERROR HANDLING TESTS
+# =================
+
+# 36. Test unauthorized access (should fail without auth)
+query TestUnauthorized {
+  me {
+    penggunaId
+    email
+  }
+}
+
+# 37. Test invalid order ID (should return error)
+query TestInvalidOrderId {
+  getOrderById(id: "999999") {
+    pesananId
+    status
+  }
+}
+
+# 38. Test invalid restaurant ID (should return error)
+query TestInvalidRestaurantId {
+  getRestaurantById(id: "999999") {
+    restoranId
+    nama
+  }
+} 
