@@ -1,0 +1,131 @@
+// File: prisma/schema.prisma
+
+// Konfigurasi koneksi ke database MySQL
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// Konfigurasi generator Prisma Client
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ===================================
+// === DEFINISI MODEL (TABEL)      ===
+// ===================================
+
+// --- Model dan Enum untuk Pengguna ---
+enum Role {
+  Customer
+  Driver
+  Restaurant
+}
+
+model USER {
+  penggunaId    Int      @id @default(autoincrement())
+  namaPengguna  String
+  email         String   @unique
+  password      String
+  telepon       String?
+  alamat        String?
+  role          Role     @map("Role")
+
+  // Relasi: Satu User bisa punya banyak Order
+  orders        ORDER[]
+}
+
+
+// --- Model untuk Restoran ---
+model RESTAURANT {
+  restoranId    Int      @id @default(autoincrement())
+  nama          String
+  alamat        String   @db.Text
+  jenisMasakan  String?
+  rating        Float?   @default(0)
+  jamBuka       String?
+  biayaAntar    Float?   @default(0)
+
+  // Relasi: Satu Restoran punya banyak Menu Item dan banyak Order
+  menuItems     MENU_ITEM[]
+  orders        ORDER[]
+}
+
+
+// --- Model untuk Pengemudi ---
+enum DriverStatus {
+  Online
+  Offline
+  Delivering
+}
+
+model DELIVERY_DRIVER {
+  pengemudiId     Int           @id @default(autoincrement())
+  namaPengemudi   String
+  telepon         String?
+  detailKendaraan String?
+  status          DriverStatus?
+  lokasiSaatIni   String?
+
+  // Relasi: Satu Driver bisa menangani banyak Order
+  orders          ORDER[]
+}
+
+
+// --- Model untuk Menu Item ---
+model MENU_ITEM {
+  itemMenuId Int      @id @default(autoincrement())
+  nama       String
+  deskripsi  String?  @db.Text
+  harga      Float
+  urlGambar  String?
+
+  // Relasi: Menu item ini milik satu Restoran
+  restoranId Int
+  restoran   RESTAURANT @relation(fields: [restoranId], references: [restoranId], onDelete: Cascade)
+
+  // Relasi: Satu Menu Item bisa ada di banyak Order Item
+  orderItems ORDER_ITEM[]
+}
+
+
+// --- Model untuk Pesanan (Order) ---
+model ORDER {
+  pesananId         Int       @id @default(autoincrement())
+  tanggalPesanan    DateTime? @default(now())
+  jumlahTotal       Float
+  status            String?
+  alamatAntar       String    @db.Text
+  metodePembayaran  String?
+
+  // Relasi: Order ini dibuat oleh satu User
+  penggunaId Int?
+  pengguna   USER?  @relation(fields: [penggunaId], references: [penggunaId], onDelete: SetNull)
+  
+  // Relasi: Order ini milik satu Restoran
+  restoranId Int?
+  restoran   RESTAURANT? @relation(fields: [restoranId], references: [restoranId], onDelete: SetNull)
+  
+  // Relasi: Order ini diantar oleh satu Driver
+  pengemudiId Int?
+  pengemudi   DELIVERY_DRIVER? @relation(fields: [pengemudiId], references: [pengemudiId], onDelete: SetNull)
+
+  // Relasi: Satu Order memiliki banyak Order Item
+  items             ORDER_ITEM[]
+}
+
+
+// --- Model untuk Item dalam Pesanan (Order Item) ---
+model ORDER_ITEM {
+  itemPesananId   Int     @id @default(autoincrement())
+  quantity        Int
+  instruksiKhusus String? @db.Text
+
+  // Relasi: Item ini adalah bagian dari satu Order
+  pesananId Int
+  pesanan   ORDER @relation(fields: [pesananId], references: [pesananId], onDelete: Cascade)
+  
+  // Relasi: Item ini merujuk ke satu Menu Item
+  itemMenuId Int?
+  menuItem   MENU_ITEM? @relation(fields: [itemMenuId], references: [itemMenuId], onDelete: SetNull)
+}
