@@ -13,7 +13,7 @@
         # Kita juga bisa memasukkan relasi di sini
         menuItems: [MenuItem]
       }
-    
+      
       # Mendefinisikan tipe data untuk Menu Item
       type MenuItem {
         itemMenuId: ID!

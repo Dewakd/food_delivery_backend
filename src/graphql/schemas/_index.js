@@ -10,4 +10,3 @@
     `;
     
     export const typeDefs = [baseTypeDefs, userTypeDefs, restaurantTypeDefs];
-    
