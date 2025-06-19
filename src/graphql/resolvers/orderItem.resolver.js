@@ -207,8 +207,8 @@ export const resolvers = {
           });
         }
 
-        if (!['cart', 'pending'].includes(order.status)) {
-          throw new GraphQLError('You can only modify cart or pending orders', {
+        if (order.status !== 'cart') {
+          throw new GraphQLError('You can only modify orders in cart status', {
             extensions: { code: 'ORDER_NOT_MODIFIABLE' }
           });
         }
@@ -276,8 +276,8 @@ export const resolvers = {
           });
         }
 
-        if (orderItem.pesanan.status !== 'pending') {
-          throw new GraphQLError('You can only modify pending orders', {
+        if (orderItem.pesanan.status !== 'cart') {
+          throw new GraphQLError('You can only modify orders in cart status', {
             extensions: { code: 'ORDER_NOT_MODIFIABLE' }
           });
         }
@@ -333,8 +333,8 @@ export const resolvers = {
           });
         }
 
-        if (orderItem.pesanan.status !== 'pending') {
-          throw new GraphQLError('You can only modify pending orders', {
+        if (orderItem.pesanan.status !== 'cart') {
+          throw new GraphQLError('You can only modify orders in cart status', {
             extensions: { code: 'ORDER_NOT_MODIFIABLE' }
           });
         }
@@ -438,8 +438,8 @@ export const resolvers = {
             });
           }
 
-          if (orderItem.pesanan.status !== 'pending') {
-            throw new GraphQLError('You can only modify pending orders', {
+          if (orderItem.pesanan.status !== 'cart') {
+            throw new GraphQLError('You can only modify orders in cart status', {
               extensions: { code: 'ORDER_NOT_MODIFIABLE' }
             });
           }
@@ -487,8 +487,8 @@ export const resolvers = {
             });
           }
 
-          if (orderItem.pesanan.status !== 'pending') {
-            throw new GraphQLError('You can only modify pending orders', {
+          if (orderItem.pesanan.status !== 'cart') {
+            throw new GraphQLError('You can only modify orders in cart status', {
               extensions: { code: 'ORDER_NOT_MODIFIABLE' }
             });
           }
