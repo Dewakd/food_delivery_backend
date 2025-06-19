@@ -27,8 +27,8 @@ model USER {
   updatedAt     DateTime @updatedAt
 
   orders        ORDER[]
-  
   restaurants   RESTAURANT[]
+  carts         CART[]
 }
 
 
@@ -52,6 +52,7 @@ model RESTAURANT {
 
   menuItems     MENU_ITEM[]
   orders        ORDER[]
+  carts         CART[]
 }
 
 
@@ -93,6 +94,7 @@ model MENU_ITEM {
   restoran   RESTAURANT @relation(fields: [restoranId], references: [restoranId], onDelete: Cascade)
 
   orderItems ORDER_ITEM[]
+  cartItems  CART_ITEM[]
 }
 
 
@@ -138,4 +140,38 @@ model ORDER_ITEM {
   
   itemMenuId Int?
   menuItem   MENU_ITEM? @relation(fields: [itemMenuId], references: [itemMenuId], onDelete: SetNull)
+}
+
+
+model CART {
+  cartId           Int       @id @default(autoincrement())
+  penggunaId       Int
+  restoranId       Int
+  alamatAntar      String?   @db.Text
+  metodePembayaran String?
+  catatanPesanan   String?   @db.Text
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  pengguna         USER       @relation(fields: [penggunaId], references: [penggunaId], onDelete: Cascade)
+  restoran         RESTAURANT @relation(fields: [restoranId], references: [restoranId], onDelete: Cascade)
+  items            CART_ITEM[]
+
+  @@unique([penggunaId, restoranId])
+}
+
+
+model CART_ITEM {
+  cartItemId      Int       @id @default(autoincrement())
+  cartId          Int
+  itemMenuId      Int
+  quantity        Int       @default(1)
+  instruksiKhusus String?   @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  cart            CART      @relation(fields: [cartId], references: [cartId], onDelete: Cascade)
+  menuItem        MENU_ITEM @relation(fields: [itemMenuId], references: [itemMenuId], onDelete: Cascade)
+
+  @@unique([cartId, itemMenuId])
 }

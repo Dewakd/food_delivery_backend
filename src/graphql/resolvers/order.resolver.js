@@ -291,7 +291,7 @@ export const resolvers = {
           biayaOngkir,
           biayaLayanan,
           totalBiaya,
-          status: 'cart',
+          status: 'pending',
           items: {
             create: orderItems
           }
@@ -301,50 +301,7 @@ export const resolvers = {
       return order;
     },
 
-    submitOrderToRestaurant: async (_, { orderId }, { user }) => {
-      if (!user || user.role !== 'Customer') {
-        throw new GraphQLError('Only customers can submit orders to restaurant', {
-          extensions: { code: 'FORBIDDEN' }
-        });
-      }
 
-      const order = await prisma.oRDER.findUnique({
-        where: { pesananId: parseInt(orderId) },
-        include: { items: true }
-      });
-
-      if (!order) {
-        throw new GraphQLError('Order not found', {
-          extensions: { code: 'ORDER_NOT_FOUND' }
-        });
-      }
-
-      if (order.penggunaId !== user.penggunaId) {
-        throw new GraphQLError('You can only submit your own orders', {
-          extensions: { code: 'FORBIDDEN' }
-        });
-      }
-
-      if (order.status !== 'cart') {
-        throw new GraphQLError('Order must be in cart status to submit', {
-          extensions: { code: 'INVALID_ORDER_STATUS' }
-        });
-      }
-
-      if (!order.items || order.items.length === 0) {
-        throw new GraphQLError('Cannot submit empty order', {
-          extensions: { code: 'EMPTY_ORDER' }
-        });
-      }
-
-      return await prisma.oRDER.update({
-        where: { pesananId: parseInt(orderId) },
-        data: {
-          status: 'pending',
-          updatedAt: new Date()
-        }
-      });
-    },
 
     confirmOrder: async (_, { orderId, estimasiWaktu }, { user }) => {
       if (!user || user.role !== 'Restaurant') {
@@ -435,8 +392,8 @@ export const resolvers = {
         });
       }
 
-      if (user.role === 'Customer' && (order.penggunaId !== user.penggunaId || !['cart', 'pending'].includes(order.status))) {
-        throw new GraphQLError('You can only cancel your own cart or pending orders', {
+      if (user.role === 'Customer' && (order.penggunaId !== user.penggunaId || order.status !== 'pending')) {
+        throw new GraphQLError('You can only cancel your own pending orders', {
           extensions: { code: 'FORBIDDEN' }
         });
       }

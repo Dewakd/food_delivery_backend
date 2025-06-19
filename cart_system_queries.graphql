@@ -1,0 +1,546 @@
+# =============================================================================
+# CART SYSTEM QUERIES & MUTATIONS
+# New dedicated cart system - separate from orders
+# =============================================================================
+
+# 🚨 IMPORTANT BEHAVIOR: AUTO-DELETE WHEN SWITCHING RESTAURANTS
+# ============================================================
+# When a user adds items to a cart from a new restaurant, ALL existing carts 
+# from other restaurants are automatically deleted. This prevents confusion
+# and ensures users can only have one active cart at a time.
+#
+# Triggers for auto-delete:
+# - addToCart() with different restaurant ID
+# - createOrGetCart() with different restaurant ID
+#
+# This matches behavior of popular food delivery apps like Uber Eats, DoorDash
+# =============================================================================
+
+# =============================================================================
+# 🛒 CART MANAGEMENT
+# =============================================================================
+
+# 1. Get or Create Cart for Restaurant
+# Note: Creating cart for new restaurant automatically deletes any existing carts from other restaurants
+mutation CreateOrGetCart($restaurantId: ID!, $address: String, $paymentMethod: String, $notes: String) {
+  createOrGetCart(input: {
+    restoranId: $restaurantId
+    alamatAntar: $address
+    metodePembayaran: $paymentMethod
+    catatanPesanan: $notes
+  }) {
+    cartId
+    penggunaId
+    restoranId
+    alamatAntar
+    metodePembayaran
+    catatanPesanan
+    createdAt
+    updatedAt
+    restoran {
+      nama
+      alamat
+      biayaAntar
+    }
+    itemCount
+    subtotal
+    deliveryFee
+    serviceFee
+    totalAmount
+  }
+}
+
+# 2. Add Item to Cart
+# Note: Adding item from new restaurant automatically deletes any existing carts from other restaurants
+mutation AddToCart($restaurantId: ID!, $menuItemId: ID!, $quantity: Int!, $instructions: String) {
+  addToCart(input: {
+    restoranId: $restaurantId
+    itemMenuId: $menuItemId
+    quantity: $quantity
+    instruksiKhusus: $instructions
+  }) {
+    cartItemId
+    cartId
+    itemMenuId
+    quantity
+    instruksiKhusus
+    createdAt
+    updatedAt
+    menuItem {
+      nama
+      deskripsi
+      harga
+      urlGambar
+      isAvailable
+    }
+    unitPrice
+    totalPrice
+    cart {
+      cartId
+      itemCount
+      subtotal
+      totalAmount
+    }
+  }
+}
+
+# 3. Update Cart Item
+mutation UpdateCartItem($cartItemId: ID!, $quantity: Int, $instructions: String) {
+  updateCartItem(cartItemId: $cartItemId, input: {
+    quantity: $quantity
+    instruksiKhusus: $instructions
+  }) {
+    cartItemId
+    quantity
+    instruksiKhusus
+    updatedAt
+    unitPrice
+    totalPrice
+    cart {
+      cartId
+      itemCount
+      subtotal
+      totalAmount
+    }
+  }
+}
+
+# 4. Remove Item from Cart
+mutation RemoveFromCart($cartItemId: ID!) {
+  removeFromCart(cartItemId: $cartItemId)
+}
+
+# 5. Update Cart Info (address, payment, notes)
+mutation UpdateCart($cartId: ID!, $address: String, $paymentMethod: String, $notes: String) {
+  updateCart(cartId: $cartId, input: {
+    alamatAntar: $address
+    metodePembayaran: $paymentMethod
+    catatanPesanan: $notes
+  }) {
+    cartId
+    alamatAntar
+    metodePembayaran
+    catatanPesanan
+    updatedAt
+    itemCount
+    totalAmount
+  }
+}
+
+# 6. Clear Cart
+mutation ClearCart($cartId: ID!) {
+  clearCart(cartId: $cartId)
+}
+
+# 7. Switch Restaurant (automatically deletes previous carts)
+# Note: When adding items to a new restaurant, all previous carts are automatically deleted
+mutation SwitchRestaurant($newRestaurantId: ID!, $address: String) {
+  createOrGetCart(input: {
+    restoranId: $newRestaurantId
+    alamatAntar: $address
+  }) {
+    cartId
+    restoranId
+    alamatAntar
+    createdAt
+    restoran {
+      nama
+      alamat
+    }
+    itemCount
+    totalAmount
+  }
+}
+
+# =============================================================================
+# 💳 CHECKOUT
+# =============================================================================
+
+# 8. Checkout Cart (converts cart to order)
+mutation CheckoutCart($cartId: ID!) {
+  checkoutCart(cartId: $cartId) {
+    pesananId
+    status
+    alamatAntar
+    metodePembayaran
+    catatanPesanan
+    jumlahTotal
+    biayaOngkir
+    biayaLayanan
+    totalBiaya
+    createdAt
+    restoran {
+      nama
+      alamat
+      noTelepon
+    }
+    items {
+      itemPesananId
+      quantity
+      instruksiKhusus
+      hargaSatuan
+      totalHarga
+      menuItem {
+        nama
+        deskripsi
+        urlGambar
+      }
+    }
+  }
+}
+
+# =============================================================================
+# 📋 CART QUERIES
+# =============================================================================
+
+# 9. Get My Cart for Specific Restaurant
+query GetMyCart($restaurantId: ID) {
+  getMyCart(restoranId: $restaurantId) {
+    cartId
+    penggunaId
+    restoranId
+    alamatAntar
+    metodePembayaran
+    catatanPesanan
+    createdAt
+    updatedAt
+    restoran {
+      restoranId
+      nama
+      alamat
+      urlGambar
+      biayaAntar
+      waktuBuka
+      waktuTutup
+    }
+    items {
+      cartItemId
+      itemMenuId
+      quantity
+      instruksiKhusus
+      createdAt
+      updatedAt
+      menuItem {
+        itemMenuId
+        nama
+        deskripsi
+        harga
+        kategori
+        urlGambar
+        isAvailable
+      }
+      unitPrice
+      totalPrice
+    }
+    itemCount
+    subtotal
+    deliveryFee
+    serviceFee
+    totalAmount
+  }
+}
+
+# 10. Get All My Carts
+# Note: With auto-delete behavior, users will typically have only 0-1 active carts
+query GetAllMyCarts {
+  getMyCarts {
+    cartId
+    restoranId
+    alamatAntar
+    metodePembayaran
+    createdAt
+    updatedAt
+    restoran {
+      nama
+      alamat
+      urlGambar
+    }
+    items {
+      cartItemId
+      quantity
+      menuItem {
+        nama
+        harga
+        urlGambar
+      }
+      totalPrice
+    }
+    itemCount
+    subtotal
+    totalAmount
+  }
+}
+
+# 11. Get Cart by ID
+query GetCartById($cartId: ID!) {
+  getCartById(id: $cartId) {
+    cartId
+    penggunaId
+    restoranId
+    alamatAntar
+    metodePembayaran
+    catatanPesanan
+    createdAt
+    updatedAt
+    restoran {
+      nama
+      alamat
+      noTelepon
+      biayaAntar
+    }
+    items {
+      cartItemId
+      itemMenuId
+      quantity
+      instruksiKhusus
+      menuItem {
+        nama
+        deskripsi
+        harga
+        urlGambar
+        isAvailable
+      }
+      unitPrice
+      totalPrice
+    }
+    itemCount
+    subtotal
+    deliveryFee
+    serviceFee
+    totalAmount
+  }
+}
+
+# =============================================================================
+# 🎯 COMPLETE USER FLOWS
+# =============================================================================
+
+# Flow 1: First Time Adding Item to Cart
+# =====================================
+# 1. User browses restaurant menu
+# 2. User clicks "Add to Cart" on first item
+# Note: If user has carts from other restaurants, they will be automatically deleted
+mutation AddFirstItemToCart {
+  addToCart(input: {
+    restoranId: "1"
+    itemMenuId: "5"
+    quantity: 2
+    instruksiKhusus: "Extra spicy please"
+  }) {
+    cartItemId
+    quantity
+    totalPrice
+    cart {
+      cartId
+      itemCount
+      totalAmount
+      restoran {
+        nama
+      }
+    }
+  }
+}
+
+# Flow 2: Add More Items to Existing Cart
+# =======================================
+mutation AddMoreItems {
+  addToCart(input: {
+    restoranId: "1"
+    itemMenuId: "7"
+    quantity: 1
+    instruksiKhusus: "No onions"
+  }) {
+    cartItemId
+    menuItem {
+      nama
+    }
+    cart {
+      itemCount
+      totalAmount
+    }
+  }
+}
+
+# Flow 3: View Cart Before Checkout
+# =================================
+query ViewCartSummary($restaurantId: ID!) {
+  getMyCart(restoranId: $restaurantId) {
+    cartId
+    alamatAntar
+    metodePembayaran
+    items {
+      cartItemId
+      quantity
+      instruksiKhusus
+      menuItem {
+        nama
+        harga
+        urlGambar
+      }
+      totalPrice
+    }
+    subtotal
+    deliveryFee
+    serviceFee
+    totalAmount
+    restoran {
+      nama
+      biayaAntar
+    }
+  }
+}
+
+# Flow 4: Update Cart Before Checkout
+# ===================================
+# Update delivery address
+mutation UpdateDeliveryInfo($cartId: ID!) {
+  updateCart(cartId: $cartId, input: {
+    alamatAntar: "New Address: Jl. Merdeka No. 45, Jakarta"
+    metodePembayaran: "credit_card"
+    catatanPesanan: "Please call when arrived"
+  }) {
+    cartId
+    alamatAntar
+    metodePembayaran
+    catatanPesanan
+    totalAmount
+  }
+}
+
+# Flow 5: Modify Cart Items
+# =========================
+# Increase quantity
+mutation IncreaseQuantity($cartItemId: ID!) {
+  updateCartItem(cartItemId: $cartItemId, input: {
+    quantity: 3
+  }) {
+    cartItemId
+    quantity
+    totalPrice
+    cart {
+      totalAmount
+    }
+  }
+}
+
+# Remove item
+mutation RemoveCartItem($cartItemId: ID!) {
+  removeFromCart(cartItemId: $cartItemId)
+}
+
+# Flow 6: Switch Restaurant (Auto-Delete Previous Carts)
+# ======================================================
+# When user wants to order from different restaurant, previous carts are automatically deleted
+# Just add an item from new restaurant or create cart for new restaurant
+mutation SwitchToNewRestaurant {
+  addToCart(input: {
+    restoranId: "2"
+    itemMenuId: "15"
+    quantity: 1
+    instruksiKhusus: "First item from new restaurant - previous carts auto-deleted"
+  }) {
+    cartItemId
+    cart {
+      cartId
+      restoran {
+        nama
+        jenisKuliner
+      }
+      alamatAntar
+      itemCount
+      totalAmount
+    }
+  }
+}
+
+# Alternative: Create empty cart for new restaurant (also deletes previous carts)
+mutation CreateCartNewRestaurant {
+  createOrGetCart(input: {
+    restoranId: "2"
+    alamatAntar: "Jl. Sudirman No. 123, Jakarta"
+  }) {
+    cartId
+    restoran {
+      nama
+      jenisKuliner
+    }
+    alamatAntar
+  }
+}
+
+# Flow 7: Complete Checkout
+# =========================
+mutation CompleteCheckout($cartId: ID!) {
+  checkoutCart(cartId: $cartId) {
+    pesananId
+    status
+    totalBiaya
+    alamatAntar
+    createdAt
+    restoran {
+      nama
+      noTelepon
+    }
+    items {
+      quantity
+      menuItem {
+        nama
+      }
+      totalHarga
+    }
+  }
+}
+
+# =============================================================================
+# 📱 FRONTEND HELPER QUERIES
+# =============================================================================
+
+# Check if user has any active carts (max 1 with auto-delete behavior)
+query HasActiveCarts {
+  getMyCarts {
+    cartId
+    restoranId
+    restoran {
+      nama
+    }
+    itemCount
+  }
+}
+
+# Get cart count for specific restaurant (for cart badge)
+query GetCartItemCount($restaurantId: ID!) {
+  getMyCart(restoranId: $restaurantId) {
+    itemCount
+  }
+}
+
+# Validate cart before checkout
+query ValidateCartForCheckout($cartId: ID!) {
+  getCartById(id: $cartId) {
+    cartId
+    alamatAntar
+    items {
+      cartItemId
+      quantity
+      menuItem {
+        nama
+        isAvailable
+        harga
+      }
+    }
+    totalAmount
+    restoran {
+      nama
+      isActive
+    }
+  }
+}
+
+# Get cart with minimal data for quick updates
+query GetCartMinimal($restaurantId: ID!) {
+  getMyCart(restoranId: $restaurantId) {
+    cartId
+    itemCount
+    totalAmount
+  }
+} 

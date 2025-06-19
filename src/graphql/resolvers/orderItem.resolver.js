@@ -207,8 +207,8 @@ export const resolvers = {
           });
         }
 
-        if (order.status !== 'cart') {
-          throw new GraphQLError('You can only modify orders in cart status', {
+        if (order.status !== 'pending') {
+          throw new GraphQLError('You can only modify pending orders', {
             extensions: { code: 'ORDER_NOT_MODIFIABLE' }
           });
         }
