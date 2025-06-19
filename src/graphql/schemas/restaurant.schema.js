@@ -1,5 +1,3 @@
-    // File: src/graphql/schemas/restaurant.schema.js
-    
     export const typeDefs = `#graphql
   # Mendefinisikan tipe data untuk Restaurant
   type Restaurant {
@@ -17,6 +15,7 @@
     createdAt: String
     updatedAt: String
     # Relasi
+    owner: User
     menuItems: [MenuItem]
     orders: [Order]
     totalOrders: Int
@@ -105,6 +104,7 @@
     getAllRestaurants(filter: RestaurantFilter, sortBy: RestaurantSortBy, limit: Int, offset: Int): [Restaurant]
     getRestaurantById(id: ID!): Restaurant
     getMyRestaurant: Restaurant
+    getMyRestaurants: [Restaurant]
     searchRestaurants(searchTerm: String!, limit: Int): [Restaurant]
     getRestaurantsByType(jenisMasakan: String!): [Restaurant]
     getPopularRestaurants(limit: Int): [Restaurant]
@@ -130,9 +130,7 @@
     deleteMenuItem(id: ID!): Boolean
     toggleMenuItemAvailability(id: ID!): MenuItem
     
-    # Bulk operations
-    bulkUpdateMenuItems(restoranId: ID!, isAvailable: Boolean!): [MenuItem]
-    bulkDeleteMenuItems(itemIds: [ID!]!): Boolean
+
   }
 `;
     

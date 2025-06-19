@@ -26,7 +26,6 @@ export const resolvers = {
         });
       }
 
-      // Check if user can access this order item
       if (user.role === 'Customer' && orderItem.pesanan.penggunaId !== user.penggunaId) {
         throw new GraphQLError('You can only access your own order items', {
           extensions: { code: 'FORBIDDEN' }
@@ -43,7 +42,6 @@ export const resolvers = {
         });
       }
 
-      // First check if user can access this order
       const order = await prisma.oRDER.findUnique({
         where: { pesananId: parseInt(orderId) }
       });
@@ -54,7 +52,6 @@ export const resolvers = {
         });
       }
 
-      // Check permissions
       if (user.role === 'Customer' && order.penggunaId !== user.penggunaId) {
         throw new GraphQLError('You can only access your own order items', {
           extensions: { code: 'FORBIDDEN' }
@@ -88,7 +85,6 @@ export const resolvers = {
         });
       }
 
-      // Get most ordered items for a restaurant
       const popularItems = await prisma.oRDER_ITEM.groupBy({
         by: ['itemMenuId'],
         where: {
@@ -112,7 +108,6 @@ export const resolvers = {
         take: limit
       });
 
-      // Get the actual order items for these popular menu items
       const menuItemIds = popularItems.map(item => item.itemMenuId);
       
       return await prisma.oRDER_ITEM.findMany({
@@ -161,7 +156,6 @@ export const resolvers = {
       const totalValue = stats._sum.totalHarga || 0;
       const totalOrderItems = stats._count.itemPesananId || 0;
 
-      // Get popular items
       const popularItems = await prisma.mENU_ITEM.findMany({
         where: {
           ...(restoranId && { restoranId: parseInt(restoranId) }),
@@ -196,7 +190,6 @@ export const resolvers = {
         });
       }
 
-      // Check if order exists and user owns it
       const order = await prisma.oRDER.findUnique({
         where: { pesananId: parseInt(input.pesananId) }
       });
@@ -207,7 +200,6 @@ export const resolvers = {
         });
       }
 
-      // Only customers can add items to their own orders, and only if order is pending
       if (user.role === 'Customer') {
         if (order.penggunaId !== user.penggunaId) {
           throw new GraphQLError('You can only modify your own orders', {
@@ -222,7 +214,6 @@ export const resolvers = {
         }
       }
 
-      // Get menu item to validate and get price
       const menuItem = await prisma.mENU_ITEM.findUnique({
         where: { itemMenuId: parseInt(input.itemMenuId) }
       });
@@ -241,7 +232,6 @@ export const resolvers = {
 
       const totalHarga = menuItem.harga * input.quantity;
 
-      // Create order item
       const orderItem = await prisma.oRDER_ITEM.create({
         data: {
           pesananId: parseInt(input.pesananId),
@@ -253,7 +243,6 @@ export const resolvers = {
         }
       });
 
-      // Update order total
       await updateOrderTotal(parseInt(input.pesananId));
 
       return orderItem;
@@ -280,7 +269,6 @@ export const resolvers = {
         });
       }
 
-      // Check permissions
       if (user.role === 'Customer') {
         if (orderItem.pesanan.penggunaId !== user.penggunaId) {
           throw new GraphQLError('You can only modify your own order items', {
@@ -295,7 +283,6 @@ export const resolvers = {
         }
       }
 
-      // Update data
       const updateData = {};
       
       if (input.quantity !== undefined) {
@@ -314,7 +301,6 @@ export const resolvers = {
         data: updateData
       });
 
-      // Update order total if quantity changed
       if (input.quantity !== undefined) {
         await updateOrderTotal(orderItem.pesananId);
       }
@@ -340,7 +326,6 @@ export const resolvers = {
         });
       }
 
-      // Check permissions
       if (user.role === 'Customer') {
         if (orderItem.pesanan.penggunaId !== user.penggunaId) {
           throw new GraphQLError('You can only modify your own order items', {
@@ -361,7 +346,6 @@ export const resolvers = {
         where: { itemPesananId: parseInt(id) }
       });
 
-      // Update order total
       await updateOrderTotal(pesananId);
 
       return true;
@@ -374,7 +358,6 @@ export const resolvers = {
         });
       }
 
-      // Check order permissions
       const order = await prisma.oRDER.findUnique({
         where: { pesananId: parseInt(pesananId) }
       });
@@ -414,15 +397,12 @@ export const resolvers = {
         });
       }
 
-      // Create all order items
       const createdItems = await prisma.oRDER_ITEM.createMany({
         data: orderItems
       });
 
-      // Update order total
       await updateOrderTotal(parseInt(pesananId));
 
-      // Return the created items
       return await prisma.oRDER_ITEM.findMany({
         where: { pesananId: parseInt(pesananId) },
         orderBy: { createdAt: 'desc' },
@@ -439,7 +419,6 @@ export const resolvers = {
 
       const itemIdsInt = itemIds.map(id => parseInt(id));
 
-      // Get order items to check permissions
       const orderItems = await prisma.oRDER_ITEM.findMany({
         where: { itemPesananId: { in: itemIdsInt } },
         include: { pesanan: true }
@@ -451,7 +430,6 @@ export const resolvers = {
         });
       }
 
-      // Check permissions for each order item
       if (user.role === 'Customer') {
         for (const orderItem of orderItems) {
           if (orderItem.pesanan.penggunaId !== user.penggunaId) {
@@ -470,12 +448,10 @@ export const resolvers = {
 
       const pesananIds = [...new Set(orderItems.map(item => item.pesananId))];
 
-      // Delete all order items
       await prisma.oRDER_ITEM.deleteMany({
         where: { itemPesananId: { in: itemIdsInt } }
       });
 
-      // Update order totals for all affected orders
       for (const pesananId of pesananIds) {
         await updateOrderTotal(pesananId);
       }
@@ -492,7 +468,6 @@ export const resolvers = {
 
       const itemIds = updates.map(update => parseInt(update.itemPesananId));
 
-      // Get order items to check permissions
       const orderItems = await prisma.oRDER_ITEM.findMany({
         where: { itemPesananId: { in: itemIds } },
         include: { pesanan: true }
@@ -504,7 +479,6 @@ export const resolvers = {
         });
       }
 
-      // Check permissions
       if (user.role === 'Customer') {
         for (const orderItem of orderItems) {
           if (orderItem.pesanan.penggunaId !== user.penggunaId) {
@@ -524,7 +498,6 @@ export const resolvers = {
       const updatedItems = [];
       const pesananIds = new Set();
 
-      // Update each order item
       for (const update of updates) {
         const orderItem = orderItems.find(item => item.itemPesananId === parseInt(update.itemPesananId));
         if (!orderItem) continue;
@@ -544,7 +517,6 @@ export const resolvers = {
         pesananIds.add(orderItem.pesananId);
       }
 
-      // Update order totals for all affected orders
       for (const pesananId of pesananIds) {
         await updateOrderTotal(pesananId);
       }
@@ -553,7 +525,6 @@ export const resolvers = {
     },
   },
 
-  // Relation resolvers
   OrderItem: {
     pesanan: async (parent) => {
       return await prisma.oRDER.findUnique({
@@ -570,7 +541,6 @@ export const resolvers = {
   }
 };
 
-// Helper function to update order total
 async function updateOrderTotal(pesananId) {
   const orderItems = await prisma.oRDER_ITEM.findMany({
     where: { pesananId }

@@ -1,5 +1,3 @@
-// File: src/graphql/schemas/deliveryDriver.schema.js
-
 export const typeDefs = `#graphql
   # Enum untuk status driver
   enum DriverStatus {

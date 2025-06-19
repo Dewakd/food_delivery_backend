@@ -1,4 +1,3 @@
-    // File: src/graphql/resolvers/restaurant.resolver.js
     
 import { PrismaClient } from '@prisma/client';
 import { GraphQLError } from 'graphql';
@@ -8,7 +7,6 @@ import { GraphQLError } from 'graphql';
 export const resolvers = {
       Query: {
     getAllRestaurants: async (_, { filter, sortBy, limit = 50, offset = 0 }) => {
-      // Build where clause for filtering
       const where = {
         ...(filter?.jenisMasakan && { jenisMasakan: filter.jenisMasakan }),
         ...(filter?.minRating && { rating: { gte: filter.minRating } }),
@@ -16,7 +14,6 @@ export const resolvers = {
         ...(filter?.isActive !== undefined && { isActive: filter.isActive })
       };
 
-      // Build orderBy clause for sorting
       let orderBy = {};
       switch (sortBy) {
         case 'NAME_ASC':
@@ -75,14 +72,21 @@ export const resolvers = {
         });
       }
 
-      // For now, we'll find restaurant by user ID logic (you might need to add ownerId field to Restaurant model)
-      // This is a simplified version - in real app, you'd have restaurant ownership tracking
-      const restaurants = await prisma.rESTAURANT.findMany({
-        where: { isActive: true }
+      return await prisma.rESTAURANT.findFirst({
+        where: { ownerId: user.penggunaId }
       });
+    },
 
-      // Return first restaurant for now (in real app, you'd have proper ownership)
-      return restaurants[0] || null;
+    getMyRestaurants: async (_, __, { user }) => {
+      if (!user || user.role !== 'Restaurant') {
+        throw new GraphQLError('Only restaurant owners can access this', {
+          extensions: { code: 'FORBIDDEN' }
+        });
+      }
+
+      return await prisma.rESTAURANT.findMany({
+        where: { ownerId: user.penggunaId }
+      });
     },
 
     searchRestaurants: async (_, { searchTerm, limit = 20 }) => {
@@ -122,7 +126,6 @@ export const resolvers = {
       });
     },
 
-    // Menu Item queries
     getMenuItemById: async (_, { id }) => {
       const menuItem = await prisma.mENU_ITEM.findUnique({
         where: { itemMenuId: parseInt(id) },
@@ -175,7 +178,6 @@ export const resolvers = {
       },
 
       Mutation: {
-    // Restaurant mutations
     createRestaurant: async (_, { input }, { user }) => {
       if (!user || user.role !== 'Restaurant') {
         throw new GraphQLError('Only restaurant owners can create restaurants', {
@@ -186,6 +188,7 @@ export const resolvers = {
           return await prisma.rESTAURANT.create({
             data: {
           ...input,
+          ownerId: user.penggunaId, // SECURE: Set the owner
           biayaAntar: input.biayaAntar || 0,
           rating: 0,
           isActive: true
@@ -202,7 +205,6 @@ export const resolvers = {
 
       const restaurantId = parseInt(id);
 
-      // Check if restaurant exists
       const restaurant = await prisma.rESTAURANT.findUnique({
         where: { restoranId: restaurantId }
       });
@@ -210,6 +212,12 @@ export const resolvers = {
       if (!restaurant) {
         throw new GraphQLError('Restaurant not found', {
           extensions: { code: 'RESTAURANT_NOT_FOUND' }
+        });
+      }
+
+      if (restaurant.ownerId !== user.penggunaId) {
+        throw new GraphQLError('You can only update your own restaurant', {
+          extensions: { code: 'NOT_RESTAURANT_OWNER' }
         });
       }
 
@@ -231,7 +239,6 @@ export const resolvers = {
 
       const restaurantId = parseInt(id);
 
-      // Check if restaurant exists
       const restaurant = await prisma.rESTAURANT.findUnique({
         where: { restoranId: restaurantId }
       });
@@ -239,6 +246,12 @@ export const resolvers = {
       if (!restaurant) {
         throw new GraphQLError('Restaurant not found', {
           extensions: { code: 'RESTAURANT_NOT_FOUND' }
+        });
+      }
+
+      if (restaurant.ownerId !== user.penggunaId) {
+        throw new GraphQLError('You can only delete your own restaurant', {
+          extensions: { code: 'NOT_RESTAURANT_OWNER' }
         });
       }
 
@@ -268,6 +281,12 @@ export const resolvers = {
         });
       }
 
+      if (restaurant.ownerId !== user.penggunaId) {
+        throw new GraphQLError('You can only toggle status of your own restaurant', {
+          extensions: { code: 'NOT_RESTAURANT_OWNER' }
+        });
+      }
+
       return await prisma.rESTAURANT.update({
         where: { restoranId: restaurantId },
         data: {
@@ -277,7 +296,6 @@ export const resolvers = {
       });
     },
 
-    // Menu Item mutations
     createMenuItem: async (_, { input }, { user }) => {
       if (!user || user.role !== 'Restaurant') {
         throw new GraphQLError('Only restaurant owners can create menu items', {
@@ -285,7 +303,6 @@ export const resolvers = {
         });
       }
 
-      // Validate restaurant exists
       const restaurant = await prisma.rESTAURANT.findUnique({
         where: { restoranId: parseInt(input.restoranId) }
       });
@@ -293,6 +310,12 @@ export const resolvers = {
       if (!restaurant) {
         throw new GraphQLError('Restaurant not found', {
           extensions: { code: 'RESTAURANT_NOT_FOUND' }
+        });
+      }
+
+      if (restaurant.ownerId !== user.penggunaId) {
+        throw new GraphQLError('You can only create menu items for your own restaurant', {
+          extensions: { code: 'NOT_RESTAURANT_OWNER' }
         });
       }
 
@@ -314,14 +337,20 @@ export const resolvers = {
 
       const menuItemId = parseInt(id);
 
-      // Check if menu item exists
       const menuItem = await prisma.mENU_ITEM.findUnique({
-        where: { itemMenuId: menuItemId }
+        where: { itemMenuId: menuItemId },
+        include: { restoran: true }
       });
 
       if (!menuItem) {
         throw new GraphQLError('Menu item not found', {
           extensions: { code: 'MENU_ITEM_NOT_FOUND' }
+        });
+      }
+
+      if (menuItem.restoran.ownerId !== user.penggunaId) {
+        throw new GraphQLError('You can only update menu items for your own restaurant', {
+          extensions: { code: 'NOT_RESTAURANT_OWNER' }
         });
       }
 
@@ -343,14 +372,20 @@ export const resolvers = {
 
       const menuItemId = parseInt(id);
 
-      // Check if menu item exists
       const menuItem = await prisma.mENU_ITEM.findUnique({
-        where: { itemMenuId: menuItemId }
+        where: { itemMenuId: menuItemId },
+        include: { restoran: true }
       });
 
       if (!menuItem) {
         throw new GraphQLError('Menu item not found', {
           extensions: { code: 'MENU_ITEM_NOT_FOUND' }
+        });
+      }
+
+      if (menuItem.restoran.ownerId !== user.penggunaId) {
+        throw new GraphQLError('You can only delete menu items for your own restaurant', {
+          extensions: { code: 'NOT_RESTAURANT_OWNER' }
         });
       }
 
@@ -371,12 +406,19 @@ export const resolvers = {
       const menuItemId = parseInt(id);
 
       const menuItem = await prisma.mENU_ITEM.findUnique({
-        where: { itemMenuId: menuItemId }
+        where: { itemMenuId: menuItemId },
+        include: { restoran: true }
       });
 
       if (!menuItem) {
         throw new GraphQLError('Menu item not found', {
           extensions: { code: 'MENU_ITEM_NOT_FOUND' }
+        });
+      }
+
+      if (menuItem.restoran.ownerId !== user.penggunaId) {
+        throw new GraphQLError('You can only toggle availability for your own restaurant menu items', {
+          extensions: { code: 'NOT_RESTAURANT_OWNER' }
         });
       }
 
@@ -389,49 +431,16 @@ export const resolvers = {
       });
     },
 
-    // Bulk operations
-    bulkUpdateMenuItems: async (_, { restoranId, isAvailable }, { user }) => {
-      if (!user || user.role !== 'Restaurant') {
-        throw new GraphQLError('Only restaurant owners can bulk update menu items', {
-          extensions: { code: 'FORBIDDEN' }
-        });
-      }
 
-      await prisma.mENU_ITEM.updateMany({
-        where: { restoranId: parseInt(restoranId) },
-        data: {
-          isAvailable,
-          updatedAt: new Date()
-        }
-      });
-
-      // Return updated menu items
-      return await prisma.mENU_ITEM.findMany({
-        where: { restoranId: parseInt(restoranId) }
-      });
-    },
-
-    bulkDeleteMenuItems: async (_, { itemIds }, { user }) => {
-      if (!user || user.role !== 'Restaurant') {
-        throw new GraphQLError('Only restaurant owners can bulk delete menu items', {
-          extensions: { code: 'FORBIDDEN' }
-        });
-      }
-
-      const menuItemIds = itemIds.map(id => parseInt(id));
-
-      await prisma.mENU_ITEM.deleteMany({
-        where: {
-          itemMenuId: { in: menuItemIds }
-        }
-      });
-
-      return true;
-    },
   },
 
-  // Relation resolvers
       Restaurant: {
+    owner: async (parent) => {
+      return await prisma.uSER.findUnique({
+        where: { penggunaId: parent.ownerId }
+      });
+    },
+
           menuItems: async (parent) => {
               return await prisma.mENU_ITEM.findMany({
         where: {
@@ -456,8 +465,6 @@ export const resolvers = {
     },
 
     averageRating: async (parent) => {
-      // This would need a proper rating system in the future
-      // For now, return the stored rating
       return parent.rating;
     }
   },
@@ -472,7 +479,7 @@ export const resolvers = {
     orderItems: async (parent) => {
       return await prisma.oRDER_ITEM.findMany({
         where: { itemMenuId: parent.itemMenuId }
-              });
+      });
           }
       }
     };

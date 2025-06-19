@@ -6,21 +6,18 @@ const prisma = new PrismaClient();
 export const resolvers = {
   Query: {
     getAllDrivers: async (_, { filter, sortBy, limit = 50, offset = 0 }, { user }) => {
-      // Only platform admins can see all drivers - restaurants don't manage drivers
       if (!user || user.role !== 'Admin') {
         throw new GraphQLError('Only platform administrators can access all drivers', {
           extensions: { code: 'FORBIDDEN' }
         });
       }
 
-      // Build where clause for filtering
       const where = {
         ...(filter?.status && { status: filter.status }),
         ...(filter?.isActive !== undefined && { isActive: filter.isActive }),
         ...(filter?.minRating && { rating: { gte: filter.minRating } })
       };
 
-      // Build orderBy clause for sorting
       let orderBy = {};
       switch (sortBy) {
         case 'NAME_ASC':
@@ -85,25 +82,20 @@ export const resolvers = {
         });
       }
 
-      // In a real app, you'd link driver profile to user account
-      // For now, we'll find by some logic or create if not exists
       const drivers = await prisma.dELIVERY_DRIVER.findMany({
         where: { isActive: true }
       });
 
-      // Return first driver for now (in real app, you'd have proper user-driver linking)
       return drivers[0] || null;
     },
 
     getAvailableOrders: async (_, { limit = 20 }, { user }) => {
-      // Drivers can see orders that are ready for pickup
       if (!user || user.role !== 'Driver') {
         throw new GraphQLError('Only drivers can see available orders', {
           extensions: { code: 'FORBIDDEN' }
         });
       }
 
-      // Return orders that are ready but not yet assigned to a driver
       return await prisma.oRDER.findMany({
         where: {
           status: 'ready',
@@ -121,7 +113,6 @@ export const resolvers = {
         });
       }
 
-      // In real app, you'd find driver by user ID
       const drivers = await prisma.dELIVERY_DRIVER.findMany({
         where: { isActive: true, status: 'Delivering' }
       });
@@ -143,7 +134,6 @@ export const resolvers = {
         });
       }
 
-      // In real app, you'd find driver by user ID
       const drivers = await prisma.dELIVERY_DRIVER.findMany({
         where: { isActive: true }
       });
@@ -163,7 +153,6 @@ export const resolvers = {
   },
 
   Mutation: {
-    // Driver profile management
     createDriverProfile: async (_, { input }, { user }) => {
       if (!user || user.role !== 'Driver') {
         throw new GraphQLError('Only users with Driver role can create driver profile', {
@@ -189,8 +178,6 @@ export const resolvers = {
         });
       }
 
-      // In real app, you'd find driver by user ID
-      // For now, we'll find the first active driver (simplified)
       const drivers = await prisma.dELIVERY_DRIVER.findMany({
         where: { isActive: true }
       });
@@ -217,7 +204,6 @@ export const resolvers = {
         });
       }
 
-      // Find and delete driver profile
       const drivers = await prisma.dELIVERY_DRIVER.findMany({
         where: { isActive: true }
       });
@@ -235,7 +221,6 @@ export const resolvers = {
       return true;
     },
 
-    // Driver order management
     acceptOrder: async (_, { orderId }, { user }) => {
       if (!user || user.role !== 'Driver') {
         throw new GraphQLError('Only drivers can accept orders', {
@@ -245,7 +230,6 @@ export const resolvers = {
 
       const orderIdInt = parseInt(orderId);
 
-      // Check if order exists and is available
       const order = await prisma.oRDER.findUnique({
         where: { pesananId: orderIdInt }
       });
@@ -268,7 +252,6 @@ export const resolvers = {
         });
       }
 
-      // Get driver profile
       const drivers = await prisma.dELIVERY_DRIVER.findMany({
         where: { isActive: true, status: 'Online' }
       });
@@ -281,7 +264,6 @@ export const resolvers = {
 
       const driver = drivers[0];
 
-      // Assign order to driver and update statuses
       await prisma.oRDER.update({
         where: { pesananId: orderIdInt },
         data: {
@@ -291,7 +273,6 @@ export const resolvers = {
         }
       });
 
-      // Update driver status
       await prisma.dELIVERY_DRIVER.update({
         where: { pengemudiId: driver.pengemudiId },
         data: {
@@ -303,7 +284,6 @@ export const resolvers = {
       return order;
     },
 
-    // Driver status management
     updateDriverStatus: async (_, { status }, { user }) => {
       if (!user || user.role !== 'Driver') {
         throw new GraphQLError('Only drivers can update their status', {
@@ -399,7 +379,6 @@ export const resolvers = {
         });
       }
 
-      // Update order status and driver status
       await prisma.oRDER.update({
         where: { pesananId: parseInt(orderId) },
         data: { status: 'delivering' }
@@ -431,13 +410,11 @@ export const resolvers = {
         });
       }
 
-      // Update order status
       await prisma.oRDER.update({
         where: { pesananId: parseInt(orderId) },
         data: { status: 'completed' }
       });
 
-      // Update driver stats and status
       return await prisma.dELIVERY_DRIVER.update({
         where: { pengemudiId: drivers[0].pengemudiId },
         data: {
@@ -448,7 +425,6 @@ export const resolvers = {
       });
     },
 
-    // Location management
     updateDriverLocation: async (_, { input }, { user }) => {
       if (!user || user.role !== 'Driver') {
         throw new GraphQLError('Only drivers can update their location', {
@@ -478,7 +454,6 @@ export const resolvers = {
 
   },
 
-  // Relation resolvers
   DeliveryDriver: {
     orders: async (parent) => {
       return await prisma.oRDER.findMany({

@@ -1,4 +1,3 @@
-    // File: src/graphql/resolvers/user.resolver.js
 
 import { PrismaClient } from '@prisma/client';
 import { hashPassword, comparePassword, generateToken, getUserFromToken } from '../../utils/auth.js';
@@ -9,7 +8,6 @@ const prisma = new PrismaClient();
 export const resolvers = {
   Query: {
     getAllUsers: async (_, __, { user }) => {
-      // Only admins or restaurant owners can see all users
       if (!user || (user.role !== 'Restaurant' && user.role !== 'Driver')) {
         throw new GraphQLError('Unauthorized access', {
           extensions: { code: 'FORBIDDEN' }
@@ -50,7 +48,6 @@ export const resolvers = {
         });
       }
 
-      // Users can only see their own profile, unless they're restaurant/driver
       if (user.penggunaId !== parseInt(id) && user.role === 'Customer') {
         throw new GraphQLError('Unauthorized access', {
           extensions: { code: 'FORBIDDEN' }
@@ -95,7 +92,6 @@ export const resolvers = {
 
   Mutation: {
     registerUser: async (_, { email, namaPengguna, password, role, telepon, alamat }) => {
-      // Check if user already exists
       const existingUser = await prisma.uSER.findUnique({
         where: { email }
       });
@@ -106,17 +102,14 @@ export const resolvers = {
         });
       }
 
-      // Validate password strength
       if (password.length < 6) {
         throw new GraphQLError('Password must be at least 6 characters long', {
           extensions: { code: 'WEAK_PASSWORD' }
         });
       }
 
-      // Hash password before saving
       const hashedPassword = await hashPassword(password);
       
-      // Create new user
       const newUser = await prisma.uSER.create({
         data: {
           email,
@@ -128,7 +121,6 @@ export const resolvers = {
         },
       });
 
-      // Generate JWT token
       const token = generateToken({
         penggunaId: newUser.penggunaId,
         email: newUser.email,
@@ -142,7 +134,6 @@ export const resolvers = {
     },
     
     loginUser: async (_, { email, password }) => {
-      // Find user by email
       const user = await prisma.uSER.findUnique({
         where: { email }
       });
@@ -153,7 +144,6 @@ export const resolvers = {
         });
       }
 
-      // Verify password
       const isValidPassword = await comparePassword(password, user.password);
       
       if (!isValidPassword) {
@@ -162,7 +152,6 @@ export const resolvers = {
         });
       }
 
-      // Generate JWT token
       const token = generateToken({
         penggunaId: user.penggunaId,
         email: user.email,
@@ -182,7 +171,6 @@ export const resolvers = {
         });
       }
 
-      // Update user profile
       const updatedUser = await prisma.uSER.update({
         where: { penggunaId: user.penggunaId },
         data: {
@@ -201,34 +189,32 @@ export const resolvers = {
         });
       }
 
-      // Get current user with password
       const currentUser = await prisma.uSER.findUnique({
         where: { penggunaId: user.penggunaId }
       });
 
-      // Verify current password
-      const isCurrentPasswordValid = await comparePassword(
-        input.currentPassword, 
-        currentUser.password
-      );
-
-      if (!isCurrentPasswordValid) {
-        throw new GraphQLError('Current password is incorrect', {
-          extensions: { code: 'INVALID_PASSWORD' }
+      if (!currentUser) {
+        throw new GraphQLError('User not found', {
+          extensions: { code: 'USER_NOT_FOUND' }
         });
       }
 
-      // Validate new password
+      const isValidPassword = await comparePassword(input.currentPassword, currentUser.password);
+      
+      if (!isValidPassword) {
+        throw new GraphQLError('Current password is incorrect', {
+          extensions: { code: 'INVALID_CURRENT_PASSWORD' }
+        });
+      }
+
       if (input.newPassword.length < 6) {
         throw new GraphQLError('New password must be at least 6 characters long', {
           extensions: { code: 'WEAK_PASSWORD' }
         });
       }
 
-      // Hash new password
       const hashedNewPassword = await hashPassword(input.newPassword);
 
-      // Update password
       await prisma.uSER.update({
         where: { penggunaId: user.penggunaId },
         data: {
@@ -249,14 +235,12 @@ export const resolvers = {
 
       const targetUserId = parseInt(id);
 
-      // Users can only delete their own account, unless they're restaurant owner
       if (user.penggunaId !== targetUserId && user.role !== 'Restaurant') {
         throw new GraphQLError('Unauthorized to delete this user', {
           extensions: { code: 'FORBIDDEN' }
         });
       }
 
-      // Check if user exists
       const targetUser = await prisma.uSER.findUnique({
         where: { penggunaId: targetUserId }
       });
@@ -267,7 +251,6 @@ export const resolvers = {
         });
       }
 
-      // Delete user
       await prisma.uSER.delete({
         where: { penggunaId: targetUserId }
       });
@@ -276,7 +259,6 @@ export const resolvers = {
     },
 
     updateUserRole: async (_, { id, role }, { user }) => {
-      // Only restaurant owners can change user roles
       if (!user || user.role !== 'Restaurant') {
         throw new GraphQLError('Only restaurant owners can change user roles', {
           extensions: { code: 'FORBIDDEN' }
@@ -285,7 +267,6 @@ export const resolvers = {
 
       const targetUserId = parseInt(id);
 
-      // Check if target user exists
       const targetUser = await prisma.uSER.findUnique({
         where: { penggunaId: targetUserId }
       });
@@ -296,7 +277,6 @@ export const resolvers = {
         });
       }
 
-      // Update user role
       const updatedUser = await prisma.uSER.update({
         where: { penggunaId: targetUserId },
         data: {
@@ -308,5 +288,18 @@ export const resolvers = {
       return updatedUser;
     },
   },
+
+  User: {
+    restaurants: async (parent) => {
+      if (parent.role !== 'Restaurant') {
+        return [];
+      }
+      
+      return await prisma.rESTAURANT.findMany({
+        where: { ownerId: parent.penggunaId },
+        orderBy: { createdAt: 'desc' }
+      });
+    }
+  }
 };
     

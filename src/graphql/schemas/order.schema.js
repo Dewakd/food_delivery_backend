@@ -1,5 +1,3 @@
-// File: src/graphql/schemas/order.schema.js
-
 export const typeDefs = `#graphql
   # Enum untuk status pesanan
   enum OrderStatus {
@@ -36,6 +34,10 @@ export const typeDefs = `#graphql
     totalBiaya: Float
     createdAt: String
     updatedAt: String
+    # Foreign Keys
+    penggunaId: ID
+    restoranId: ID
+    pengemudiId: ID
     # Relasi
     pengguna: User
     restoran: Restaurant

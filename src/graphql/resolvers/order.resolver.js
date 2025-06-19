@@ -1,4 +1,3 @@
-// File: src/graphql/resolvers/order.resolver.js
 
 import { PrismaClient } from '@prisma/client';
 import { GraphQLError } from 'graphql';
@@ -8,14 +7,12 @@ const prisma = new PrismaClient();
 export const resolvers = {
   Query: {
     getAllOrders: async (_, { filter, sortBy, limit = 50, offset = 0 }, { user }) => {
-      // Only restaurant owners can see all orders
       if (!user || user.role !== 'Restaurant') {
         throw new GraphQLError('Only restaurant owners can access all orders', {
           extensions: { code: 'FORBIDDEN' }
         });
       }
 
-      // Build where clause for filtering
       const where = {
         ...(filter?.status && { status: filter.status }),
         ...(filter?.restoranId && { restoranId: parseInt(filter.restoranId) }),
@@ -32,7 +29,6 @@ export const resolvers = {
         })
       };
 
-      // Build orderBy clause for sorting
       let orderBy = {};
       switch (sortBy) {
         case 'DATE_ASC':
@@ -87,7 +83,6 @@ export const resolvers = {
         });
       }
 
-      // Check if user can access this order
       if (user.role === 'Customer' && order.penggunaId !== user.penggunaId) {
         throw new GraphQLError('You can only access your own orders', {
           extensions: { code: 'FORBIDDEN' }
@@ -106,18 +101,13 @@ export const resolvers = {
 
       let where = {};
       
-      // Customers see their own orders
       if (user.role === 'Customer') {
         where.penggunaId = user.penggunaId;
       }
-      // Drivers see orders assigned to them
       else if (user.role === 'Driver') {
-        // In real app, you'd get driver ID from user
         where.pengemudiId = { not: null };
       }
-      // Restaurant owners see all orders
       else if (user.role === 'Restaurant') {
-        // In real app, you'd filter by restaurant owned by user
         where = {};
       }
 
@@ -140,7 +130,6 @@ export const resolvers = {
         status: { in: ['pending', 'confirmed', 'preparing', 'ready', 'delivering'] }
       };
 
-      // Filter by role
       if (user.role === 'Customer') {
         where.penggunaId = user.penggunaId;
       } else if (user.role === 'Driver') {
@@ -245,7 +234,6 @@ export const resolvers = {
         });
       }
 
-      // Validate restaurant exists
       const restaurant = await prisma.rESTAURANT.findUnique({
         where: { restoranId: parseInt(input.restoranId) }
       });
@@ -256,7 +244,6 @@ export const resolvers = {
         });
       }
 
-      // Calculate total cost
       let totalCost = 0;
       const orderItems = [];
 
@@ -289,12 +276,10 @@ export const resolvers = {
         });
       }
 
-      // Add delivery fee and service fee
       const biayaOngkir = restaurant.biayaAntar || 0;
       const biayaLayanan = totalCost * 0.05; // 5% service fee
       const totalBiaya = totalCost + biayaOngkir + biayaLayanan;
 
-      // Create order with items
       const order = await prisma.oRDER.create({
         data: {
           penggunaId: user.penggunaId,
@@ -366,7 +351,6 @@ export const resolvers = {
         });
       }
 
-      // Check permissions based on status
       if (input.status === 'preparing' && user.role !== 'Restaurant') {
         throw new GraphQLError('Only restaurant owners can set order to preparing', {
           extensions: { code: 'FORBIDDEN' }
@@ -406,7 +390,6 @@ export const resolvers = {
         });
       }
 
-      // Customers can only cancel their own pending orders
       if (user.role === 'Customer' && (order.penggunaId !== user.penggunaId || order.status !== 'pending')) {
         throw new GraphQLError('You can only cancel your own pending orders', {
           extensions: { code: 'FORBIDDEN' }
@@ -485,7 +468,6 @@ export const resolvers = {
         });
       }
 
-      // Get driver profile - simplified for now
       const drivers = await prisma.dELIVERY_DRIVER.findMany({
         where: { isActive: true, status: 'Online' }
       });
@@ -508,7 +490,6 @@ export const resolvers = {
 
   },
 
-  // Relation resolvers
   Order: {
     pengguna: async (parent) => {
       if (!parent.penggunaId) return null;

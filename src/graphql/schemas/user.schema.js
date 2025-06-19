@@ -1,5 +1,3 @@
-    // File: src/graphql/schemas/user.schema.js
-    
     export const typeDefs = `#graphql
       # Enum Role harus didefinisikan juga di GraphQL
       enum Role {
@@ -17,6 +15,8 @@
     role: Role!
     createdAt: String
     updatedAt: String
+    # Relasi
+    restaurants: [Restaurant]
   }
 
   type AuthPayload {

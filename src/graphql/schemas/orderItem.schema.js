@@ -1,4 +1,3 @@
-// File: src/graphql/schemas/orderItem.schema.js
 
 export const typeDefs = `#graphql
   # Tipe data untuk Order Item
