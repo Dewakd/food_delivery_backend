@@ -1,6 +1,7 @@
 export const typeDefs = `#graphql
   # Enum untuk status pesanan
   enum OrderStatus {
+    cart
     pending
     confirmed
     preparing
@@ -127,6 +128,7 @@ export const typeDefs = `#graphql
   extend type Mutation {
     # Customer operations
     createOrder(input: CreateOrderInput!): Order
+    submitOrderToRestaurant(orderId: ID!): Order
     cancelOrder(orderId: ID!, reason: String): Order
     
     # Restaurant operations  
